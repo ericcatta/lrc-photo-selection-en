@@ -320,7 +320,8 @@ it('shows all photos and the error after failed analysis with an old shortlist',
   const photos=Array.from({length:160},(_,i)=>({...template,id:'p'+i,uuid:'u'+i,local_id:i,filename:'failed-'+i+'.jpg',preview_ready:true}));
   service={...service,photos,requires_analysis:true,job:{status:'failed',completed:160,total:160,error:'150 invalid responses out of 160. Review the model configuration.'},proposal:{selected:photos.map(p=>p.id),shortlist:['p0','p1'],groups:[],reasons:{},warnings:['Outdated invalid notice'],engine:'old-test',stale:true}};
   await workspace();
-  expect(screen.getAllByRole('article')).toHaveLength(160);
+  expect(screen.getAllByRole('article').length).toBeLessThan(100);
+  expect(document.querySelector('[data-virtual-count="160"]')).toBeTruthy();
   expect(screen.getByText('160 photos available · 160 current candidates')).toBeTruthy();
   expect(screen.queryByText(/2 proposte to review/)).toBeNull();
   expect(screen.queryByRole('checkbox',{name:'Proposta to review (2)'})).toBeNull();
@@ -558,5 +559,20 @@ it('shows a message when preview navigation reaches a photo without a preview',a
   expect(within(dialog).getByText('sintetica-1.jpg')).toBeTruthy();
   expect(within(dialog).getByText('Preview unavailable')).toBeTruthy();
   expect(within(dialog).queryByRole('img')).toBeNull();
+  expect(calls.some(call=>call.method!=='GET')).toBe(false);
+});
+
+it("loads initial previews eagerly with explicit dimensions and displays errors",async()=>{
+  service={...service,photos:service.photos.map(photo=>({...photo,preview_ready:true}))};
+  await workspace();
+  const first=screen.getAllByRole('article')[0];
+  const image=within(first).getByRole('img',{name:'sintetica-0.jpg'});
+  expect(image.getAttribute('loading')).toBe('eager');
+  expect(image.getAttribute('width')).toBe('600');
+  expect(image.getAttribute('height')).toBe('400');
+  expect(image.getAttribute('decoding')).toBe('async');
+  expect(within(first).getByText("Loading preview…")).toBeTruthy();
+  fireEvent.error(image);
+  expect(within(first).getByRole('status').textContent).toContain("Preview failed to load");
   expect(calls.some(call=>call.method!=='GET')).toBe(false);
 });

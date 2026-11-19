@@ -275,3 +275,33 @@ it('states the confirmed analysis perimeter without treating the sample as the c
   expect(calls.find(call=>call.url.endsWith('/api-estimate'))?.body?.photo_ids).toEqual(['p0']);
   expect(calls.some(call=>call.url.endsWith('/api-confirm'))).toBe(false);
 });
+
+it('keeps a large API picker bounded and mounts the exact list only when opened',async()=>{
+  const photos=Array.from({length:1000},(_,index)=>({id:'large-'+index,filename:'large-'+index+'.jpg',preview_ready:true}));
+  const large={...service,settings:{...service.settings,workflow_path:'openai' as const},photos} as Service;
+  const height=vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockReturnValue(256);
+  const width=vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockReturnValue(900);
+  const originalFetch=globalThis.fetch;
+  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+    const result=await originalFetch(url,init);
+    if(!url.endsWith('/api-estimate'))return result;
+    return response({...await result.json(),photo_count:1000,photos:photos.map(photo=>({...photo,cached:false}))});
+  }));
+  try{
+    render(<APIReview service={large} dirty={false} disabled={false} update={vi.fn()} openRequest={1}/>);
+    await screen.findByText("1000 previews selected");
+    const picker=document.querySelector('.api-photo-picker')!;
+    expect(picker.getAttribute('data-virtual-count')).toBe('1000');
+    expect(picker.querySelectorAll('.api-photo-choice').length).toBeLessThan(100);
+    await waitFor(()=>expect((screen.getByRole('button',{name:'Calculate estimate without sending photos'}) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button',{name:'Calculate estimate without sending photos'}));
+    const summary=await screen.findByText("Exact list: 1000 previews");
+    const exact=summary.closest('details')!;
+    expect(exact.querySelectorAll('li')).toHaveLength(0);
+    fireEvent.click(summary);
+    await waitFor(()=>expect(exact.querySelectorAll('li')).toHaveLength(1000));
+    fireEvent.click(summary);
+    await waitFor(()=>expect(exact.querySelectorAll('li')).toHaveLength(0));
+    expect(calls.some(call=>call.url.endsWith('/api-confirm'))).toBe(false);
+  }finally{height.mockRestore();width.mockRestore();}
+});

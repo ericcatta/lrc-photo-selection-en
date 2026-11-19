@@ -187,3 +187,5 @@ npm --prefix web run build
 ```
 
 The optional Apple Vision test needs the compiled helper on macOS. Browser smoke scripts require Google Chrome and built assets; they start isolated synthetic backends without opening Lightroom or using the real OpenAI API. See [validation](docs/validation.md), [requirements](docs/requirements.md), [architecture](docs/architecture.md), [models](docs/models.md), [plugin guide](docs/plugin-guide.md), and [exchange protocol](shared/README.md).
+
+The contact sheet and OpenAI picker render rows near the visible area while keeping the complete selection available. See [performance and the 5,000-photo synthetic test](docs/performance.md).

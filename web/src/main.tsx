@@ -6,13 +6,15 @@ import { OpenAISettings } from './OpenAISettings';
 import { APIReview } from './APIReview';
 import { GuideButton } from './Guide';
 import {workflowPhase,workflowSteps,type WorkflowPhase} from './workflow';
+import {VirtualGrid,type VirtualGridHandle} from './VirtualGrid';
 
 const labels: Record<State,string> = {candidate:'Candidate',preferred:'Preferred',alternative:'Alternative',excluded:'Excluded',review:'To review'};
 const states = Object.keys(labels) as State[];
 const running = (s:Service) => s.job?.status === 'running' || s.job?.status === 'queued' || s.status === 'applying';
 const message = (e:unknown) => e instanceof Error ? e.message : 'The operation could not be completed.';
-function Preview({service, photo, zoom}: {service:Service; photo:Photo; zoom?:number}) {
-  return <div className={'preview'+(zoom ? ' zoom' : '')}>{photo.preview_ready ? <img style={zoom ? {width: zoom + '%', maxWidth:'none'} : undefined} src={'/api'+photoPath(service.id,photo.id)+'/preview'} loading={zoom?'eager':'lazy'} alt={photo.filename}/> : <span>Preview unavailable</span>}</div>;
+function Preview({service,photo,zoom,eager=false}: {service:Service;photo:Photo;zoom?:number;eager?:boolean}) {
+  const [state,setState]=useState<'loading'|'ready'|'error'>('loading');
+  return <div className={'preview'+(zoom?' zoom':'')} data-preview-state={state}>{photo.preview_ready?<><img width={600} height={400} decoding="async" style={zoom?{width:zoom+'%',maxWidth:'none'}:undefined} src={'/api'+photoPath(service.id,photo.id)+'/preview'} loading={zoom||eager?'eager':"lazy"} alt={photo.filename} onLoad={()=>setState('ready')} onError={()=>setState('error')}/>{state==='loading'&&<span className="preview-feedback" aria-hidden="true">Loading preview…</span>}{state==='error'&&<span className="preview-feedback" role="status">Preview failed to load. Open to retry.</span>}</>:<span>Preview unavailable</span>}</div>;
 }
 
 export function App() {
@@ -62,7 +64,7 @@ export function App() {
       {!login && <div className="service-controls">
         <label className="service-switch">Service
           <select value={service?.id ?? ''} disabled={busy} onChange={e => {if(e.target.value)void open(e.target.value);}}>
-            <option value="" disabled>{services.length ? 'Choose a service' : 'No service imported'}</option>
+            <option value='' disabled>{services.length ? 'Choose a service' : 'No service imported'}</option>
             {services.map(item => <option key={item.id} value={item.id}>{item.title} · {item.photo_count} photos{item.archived?' · Archived':''}</option>)}
           </select>
         </label>
@@ -114,7 +116,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
   const mirrored=useRef<HTMLElement|null>(null);
   const [pending,setPending]=useState(false);
   const [error,setError]=useState('');
-  const [filter,setFilter]=useState<State|'all'>('all');
+  const [filter,setFilter]=useState<State|"all">("all");
   const [shortlistOnly,setShortlistOnly]=useState(Boolean(s.proposal?.shortlist?.length));
   const shortlistKey=JSON.stringify(s.proposal?.shortlist);
   useEffect(()=>{setShortlistOnly(Boolean(s.proposal?.shortlist?.length));},[shortlistKey]);
@@ -123,6 +125,9 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
   const [compare,setCompare]=useState<string[]>([]);
   const [showCompare,setShowCompare]=useState(false);
   const [viewerId,setViewerId]=useState<string|null>(null);
+  const viewerOpener=useRef<string|null>(null);
+  const grid=useRef<VirtualGridHandle>(null);
+  const [expandedReasons,setExpandedReasons]=useState<Set<string>>(()=>new Set());
   const [zoom,setZoom]=useState(100);
   const [thumbnailSize,setThumbnailSize]=useState(230);
   const [plan,setPlan]=useState<Plan|null>(null);
@@ -150,8 +155,8 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
   const busy=pending||running(s)||!!s.archived||s.status!=='ready';
   const proposed=new Set([...(s.proposal?.selected??[]),...(s.proposal?.added_candidates??[])]);
   const reviewIds=new Set(s.proposal?.stale?[]:s.proposal?.review_ids??[]);
-  const decision=(p:Photo)=>s.decisions[p.id]??{state:reviewIds.has(p.id)?'review' as const:s.proposal&&!proposed.has(p.id)?'alternative' as const:'candidate' as const,locked:false};
-  const selectedIds=new Set(s.selected_ids??s.photos.filter(p=>['candidate','preferred','review'].includes(decision(p).state)).map(p=>p.id));
+  const decision=(p:Photo)=>s.decisions[p.id]??{state:reviewIds.has(p.id)?"review" as const:s.proposal&&!proposed.has(p.id)?'alternative' as const:'candidate' as const,locked:false};
+  const selectedIds=new Set(s.selected_ids??s.photos.filter(p=>['candidate','preferred',"review"].includes(decision(p).state)).map(p=>p.id));
   const cameras=[...new Set(s.photos.map(p=>p.camera).filter(Boolean))];
   const photoMap=new Map(s.photos.map(p=>[p.id,p]));
   const suggestions=new Map(s.interpretations?.comparisons?.map(x=>[x.photo_id,x.other_photo_id]));
@@ -160,14 +165,14 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
   const hasProposalList=s.proposal?.shortlist!==undefined;
   const rawShortlist=new Set(s.proposal?.shortlist??[]);
   const draftSelection=hasProposalList&&!s.proposal?.shortlist_accepted&&!s.proposal?.stale&&!s.requires_analysis;
-  const shortlist=new Set(draftSelection?(s.proposal?.effective_shortlist??s.photos.filter(p=>{const manual=s.decisions[p.id];return manual?['candidate','preferred','review'].includes(manual.state):rawShortlist.has(p.id);}).map(p=>p.id)):s.proposal?.shortlist??[]);
+  const shortlist=new Set(draftSelection?(s.proposal?.effective_shortlist??s.photos.filter(p=>{const manual=s.decisions[p.id];return manual?['candidate','preferred',"review"].includes(manual.state):rawShortlist.has(p.id);}).map(p=>p.id)):s.proposal?.shortlist??[]);
   const selectionIds=draftSelection?shortlist:selectedIds;
   const shownReviewCount=[...reviewIds].filter(id=>selectionIds.has(id)).length;
-  const cardDecision=(p:Photo)=>s.decisions[p.id]??(draftSelection?{state:shortlist.has(p.id)?reviewIds.has(p.id)?'review' as const:'candidate' as const:'excluded' as const,locked:false}:decision(p));
+  const cardDecision=(p:Photo)=>s.decisions[p.id]??(draftSelection?{state:shortlist.has(p.id)?reviewIds.has(p.id)?"review" as const:'candidate' as const:'excluded' as const,locked:false}:decision(p));
   const failedProposal=s.job?.status==='failed';
   const emptyProposal=draftSelection&&shortlist.size===0&&!failedProposal;
   const filterProposal=shortlistOnly&&!emptyProposal;
-  const visible=s.photos.filter(p=>(failedProposal||!filterProposal||shortlist.has(p.id))&&(filter==='all'||cardDecision(p).state===filter)&&(!group||groupMap.get(p.id)?.id===group));
+  const visible=s.photos.filter(p=>(failedProposal||!filterProposal||shortlist.has(p.id))&&(filter==="all"||cardDecision(p).state===filter)&&(!group||groupMap.get(p.id)?.id===group));
   if(chronological)visible.sort((a,b)=>{
     const time=(p:Photo)=>p.captured_at===null?Infinity:p.captured_at+(s.settings.camera_offsets[p.camera]??0);
     return time(a)-time(b)||a.id.localeCompare(b.id);
@@ -175,6 +180,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
   const viewerIndex=viewerId===null?-1:visible.findIndex(photo=>photo.id===viewerId);
   const viewerPhoto=visible[viewerIndex];
   useEffect(()=>{if(viewerId!==null&&viewerIndex<0)setViewerId(null);},[viewerId,viewerIndex]);
+  function closeViewer(){setViewerId(null);const index=visible.findIndex(photo=>photo.id===(viewerOpener.current??viewerId));window.requestAnimationFrame(()=>{if(index>=0)grid.current?.focus(index,'.photo-preview-trigger');else workflowHeading.current?.focus();});}
   function moveViewer(offset:number){const photo=visible[viewerIndex+offset];if(photo)setViewerId(photo.id);}
   const needsUnifiedSave=Boolean((s.settings.service_criteria??s.settings.preset_snapshot?.criteria??[]).length||s.settings.subject_query);
   const draftChanged=JSON.stringify(draft)!==JSON.stringify(base)||needsUnifiedSave;
@@ -241,7 +247,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
       const index=cards.findIndex(p=>p.id===focused);
       if(key==='arrowleft'||key==='arrowright'){
         const photo=cards[Math.min(cards.length-1,Math.max(0,index+(key==='arrowleft'?-1:1)))];
-        if(photo){e.preventDefault();document.getElementById('photo-'+photo.id)?.focus();}
+        if(photo){e.preventDefault();grid.current?.focus(visible.indexOf(photo));}
         return;
       }
       const photo=cards[index];
@@ -280,17 +286,17 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
         <nav aria-label="Selection steps">{workflowSteps.map((step,index)=><button key={step.id} type="button" aria-current={phase===step.id?'step':undefined} onClick={()=>navigate(step.id)}><span>{index+1}</span>{step.label}</button>)}</nav>
         <div className="workflow-next">
           <div><h2 ref={workflowHeading} tabIndex={-1}>{workflowSteps.find(x=>x.id===phase)?.label}</h2>
-            <p>{phase==='configure'?'Choose your instructions and workflow. The contact sheet remains available throughout.':phase==='analyze'?analysisInProgress?'Analysis is running. You can review the contact sheet while you wait.':interruptedAPI?`Analysis interrupted: ${s.job?.completed??0} of ${s.job?.total??0} photos completed. Prepare to resume and check the new estimate.`:route==='hybrid'&&!apiProposal?'Review the local sample, then continue with OpenAI or use the local result.':'Prepare or check the analysis before reviewing your selection.':phase==='review'?emptyProposal?'No photos selected. All photos are visible: edit the criteria or manually include those you want to keep.':`Review the ${currentCount} selected photos, including ${shownReviewCount} to check. Confirm when you are happy with the selection.`:phase==='lightroom'?s.confirmed_batch_id?'List confirmed in the web app. Continue in the Lightroom plugin.':'Prepare the rating list: existing ratings will be preserved.':'Check the receipt from the Lightroom plugin here.'}</p>
+            <p>{phase==='configure'?'Choose your instructions and workflow. The contact sheet remains available throughout.':phase==='analyze'?analysisInProgress?'Analysis is running. You can review the contact sheet while you wait.':interruptedAPI?`Analysis interrupted: ${s.job?.completed??0} of ${s.job?.total??0} photos completed. Prepare to resume and check the new estimate.`:route==='hybrid'&&!apiProposal?'Review the local sample, then continue with OpenAI or use the local result.':'Prepare or check the analysis before reviewing your selection.':phase==="review"?emptyProposal?'No photos selected. All photos are visible: edit the criteria or manually include those you want to keep.':`Review the ${currentCount} selected photos, including ${shownReviewCount} to check. Confirm when you are happy with the selection.`:phase==='lightroom'?s.confirmed_batch_id?'List confirmed in the web app. Continue in the Lightroom plugin.':'Prepare the rating list: existing ratings will be preserved.':'Check the receipt from the Lightroom plugin here.'}</p>
             {s.workflow?.blocked&&<div role="alert" className="warning"><strong>Analysis needs clarification: no new selection has been completed.</strong><ul>{s.workflow.blocked_reasons?.map((reason,index)=><li key={index}>{reason}</li>)}</ul><p>Edit the instructions in Configure or manually include photos in the contact sheet. No new analysis starts automatically.</p>{phase!=='configure'&&<button type="button" onClick={()=>navigate('configure')}>Review criteria</button>}</div>}
             {analysisInProgress&&<p role="status">{s.job?.kind==='openai'?'OpenAI':'Local'} · {s.job?.completed??0} / {s.job?.total??s.photos.length}<progress value={s.job?.completed??0} max={s.job?.total||s.photos.length}/></p>}
           </div>
           <div className="workflow-actions">
             {phase==='configure'&&<><button className="primary" disabled={busy||!valid||staleDraft||needsLocal} onClick={()=>void save(true,Boolean(s.workflow?.blocked&&draftRoute!=='local'))}>{s.workflow?.blocked&&draftRoute!=='local'?(draftChanged?'Save criteria and prepare OpenAI estimate':'Prepare a new OpenAI estimate'):draftRoute==='openai'?'Continue to OpenAI estimate':draftRoute==='hybrid'?'Start local selection':'Start selection'}</button>{(!valid||needsLocal||busy||staleDraft)&&<p className="hint">{staleDraft?'Load the saved criteria in Configure before continuing.':!valid?'Set a quantity between 1 and '+s.photos.length+'.':needsLocal?'The local model is unavailable: configure it or choose Directly with OpenAI.':'Wait for the current operation to finish.'}</p>}</>}
             {phase==='analyze'&&analysisInProgress&&s.job?.kind==='openai'&&<button type="button" onClick={()=>setApiOpenRequest(x=>x+1)}>OpenAI details and cancellation</button>}
-            {phase==='analyze'&&!analysisInProgress&&<>{route!=='local'&&<button className="primary" disabled={draftChanged||Boolean(s.archived)} onClick={()=>setApiOpenRequest(x=>x+1)}>{interruptedAPI?'Prepare to resume':apiProposal?'Review OpenAI analysis':'Continue with OpenAI'}</button>}{s.proposal&&!s.proposal.stale&&<button className={route==='local'?'primary':''} onClick={()=>navigate('review')}>{route==='hybrid'&&!apiProposal?'Use local result':'Review proposal'}</button>}{(!s.proposal||s.proposal.stale)&&route==='local'&&<button onClick={()=>navigate('configure')}>Review configuration</button>}{draftChanged&&<p className="hint">Return to Configure and save the instructions before preparing the send.</p>}{s.archived&&<p className="hint">Reopen the service in Service options before preparing the send.</p>}</>}
-            {phase==='review'&&<>{emptyProposal&&<button type="button" onClick={()=>navigate('configure')}>Review criteria</button>}<button className="primary" disabled={busy||draftChanged||Boolean(s.proposal?.stale)||!currentCount} onClick={()=>{if(s.proposal?.shortlist&&!s.proposal.shortlist_accepted)setShowAccept(true);else navigate('lightroom');}}>Confirm selection</button>{(busy||!currentCount||!s.proposal||s.proposal.stale||draftChanged)&&<p className="hint">{busy?'Wait for the current operation to finish.':!currentCount?'Include at least one photo to confirm the selection.':s.proposal?.stale||draftChanged?'Settings have changed: return to Configure.':'You can confirm the manual selection or start an analysis from Configure.'}</p>}</>}
+            {phase==='analyze'&&!analysisInProgress&&<>{route!=='local'&&<button className="primary" disabled={draftChanged||Boolean(s.archived)} onClick={()=>setApiOpenRequest(x=>x+1)}>{interruptedAPI?'Prepare to resume':apiProposal?'Review OpenAI analysis':'Continue with OpenAI'}</button>}{s.proposal&&!s.proposal.stale&&<button className={route==='local'?"primary":''} onClick={()=>navigate("review")}>{route==='hybrid'&&!apiProposal?'Use local result':'Review proposal'}</button>}{(!s.proposal||s.proposal.stale)&&route==='local'&&<button onClick={()=>navigate('configure')}>Review configuration</button>}{draftChanged&&<p className="hint">Return to Configure and save the instructions before preparing the send.</p>}{s.archived&&<p className="hint">Reopen the service in Service options before preparing the send.</p>}</>}
+            {phase==="review"&&<>{emptyProposal&&<button type="button" onClick={()=>navigate('configure')}>Review criteria</button>}<button className="primary" disabled={busy||draftChanged||Boolean(s.proposal?.stale)||!currentCount} onClick={()=>{if(s.proposal?.shortlist&&!s.proposal.shortlist_accepted)setShowAccept(true);else navigate('lightroom');}}>Confirm selection</button>{(busy||!currentCount||!s.proposal||s.proposal.stale||draftChanged)&&<p className="hint">{busy?'Wait for the current operation to finish.':!currentCount?'Include at least one photo to confirm the selection.':s.proposal?.stale||draftChanged?'Settings have changed: return to Configure.':'You can confirm the manual selection or start an analysis from Configure.'}</p>}</>}
             {phase==='lightroom'&&!s.confirmed_batch_id&&<><button className="primary" disabled={ratingBlocked} onClick={()=>{setPlan(null);setShowRating(true);}}>Review ratings <span aria-hidden="true">→</span></button>{ratingBlocked&&<p className="hint">{s.proposal?.shortlist&&!s.proposal.shortlist_accepted?'Confirm the selection in the Review step first.':draftChanged||s.requires_analysis||s.proposal?.stale?'Update the proposal from Configure before preparing ratings.':'Wait for the current operation or choose at least one candidate.'}</p>}</>}
-            {phase==='outcome'&&<button onClick={()=>navigate('review')}>Return to selection</button>}
+            {phase==='outcome'&&<button onClick={()=>navigate("review")}>Return to selection</button>}
           </div>
         </div>
         {phase==='lightroom'&&s.confirmed_batch_id&&<ol className="workflow-checklist"><li>In Lightroom, open Catalog Settings → Metadata and check that automatic XMP writing is off.</li><li>Open Library → Plug-in Extras → Apply stars.</li><li>In the plugin, acknowledge the XMP check, review the list and confirm.</li><li>Wait for the receipt: it will appear in the Outcome step.</li></ol>}
@@ -305,9 +311,9 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
         {currentProposal&&currentCount<effectiveTarget&&<p className="warning">The current selection is below the requested number ({effectiveTarget}).</p>}
         <div className="reviewhead">
           <div className="review-title"><h2>Contact sheet</h2><span>{visible.length} photos</span></div>
-          <div className="review-filters"><label>Show<select value={filterProposal?'proposal':filter==='review'?'review':'all'} onChange={e=>{setShortlistOnly(e.target.value==='proposal');setFilter(e.target.value==='review'?'review':'all');}}><option value="all">All photos</option>{s.proposal?.shortlist&&<option value="proposal" disabled={emptyProposal}>Proposal ({shortlist.size})</option>}<option value="review">To review</option></select></label>
-            <label>State<select value={filter} onChange={e=>{setFilter(e.target.value as State|'all');}}><option value="all">All</option>{states.map(x=><option key={x} value={x}>{labels[x]}</option>)}</select></label>
-            {groups.length>0&&<label>Group<select value={group} onChange={e=>{setGroup(e.target.value);}}><option value="">All</option>{groups.map((g,i)=><option key={g.id} value={g.id}>Group {i+1} · {g.members.length} photos</option>)}</select></label>}
+          <div className="review-filters"><label>Show<select value={filterProposal?"proposal":filter==="review"?"review":"all"} onChange={e=>{setShortlistOnly(e.target.value==="proposal");setFilter(e.target.value==="review"?"review":"all");}}><option value="all">All photos</option>{s.proposal?.shortlist&&<option value="proposal" disabled={emptyProposal}>Proposal ({shortlist.size})</option>}<option value="review">To review</option></select></label>
+            <label>State<select value={filter} onChange={e=>{setFilter(e.target.value as State|"all");}}><option value="all">All</option>{states.map(x=><option key={x} value={x}>{labels[x]}</option>)}</select></label>
+            {groups.length>0&&<label>Group<select value={group} onChange={e=>{setGroup(e.target.value);}}><option value=''>All</option>{groups.map((g,i)=><option key={g.id} value={g.id}>Group {i+1} · {g.members.length} photos</option>)}</select></label>}
             <label className="thumbnail-control">Previews<input aria-label="Preview size" type="range" min={170} max={330} step={10} value={thumbnailSize} onChange={e=>setThumbnailSize(e.target.valueAsNumber)}/></label>
             <button disabled={compare.length!==2} onClick={()=>{setZoom(100);setShowCompare(true);}}>Compare ({compare.length}/2)</button>{compare.length!==2&&<span className="hint">Select two photos using Compare.</span>}
           </div>
@@ -321,12 +327,11 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
         </div>
         {emptyProposal&&<p role="status" className="empty-selection">No photos proposed. You are viewing all {s.photos.length} available photos, with none automatically included. Use Include on photos you want to keep or review the criteria. No files have been deleted.</p>}
         {visible.length===0&&<p className="empty-filter">{shortlistOnly&&shortlist.size===0?'No photos proposed: review the instructions and notices. All photos remain available when you turn off the filter.':'No photos match the filters.'}</p>}
-        <div className="grid" style={{'--thumbnail-size': `${thumbnailSize}px`} as CSSProperties}>
-          {visible.map((photo,index)=>{
+        <VirtualGrid apiRef={grid} className="grid" items={visible} itemKey={photo=>photo.id} minColumnWidth={thumbnailSize} resetKey={[filter,group,chronological,shortlistOnly].join('|')} style={{'--thumbnail-size':`${thumbnailSize}px`} as CSSProperties} renderItem={(photo,index)=>{
             const d=cardDecision(photo);const included=selectionIds.has(photo.id);const manual=Boolean(s.decisions[photo.id]);const g=groupMap.get(photo.id);const suggestion=suggestions.get(photo.id);
             return <article className={'card state-'+d.state+(included?' selection-included':' selection-outside')+(compare.includes(photo.id)?' is-compared':'')} key={photo.id} id={'photo-'+photo.id} tabIndex={0} onFocus={()=>setFocused(photo.id)}>
               <div className="photo-topline"><span>{String(index+1).padStart(2,'0')}</span><span>{included?'In selection':'Not selected'}{d.locked?' · Locked':''}</span></div>
-              {photo.preview_ready?<button className="photo-preview-trigger" type="button" aria-label={'Open preview '+photo.filename} onClick={event=>{event.currentTarget.focus({preventScroll:true});setViewerId(photo.id);}}><Preview service={s} photo={photo}/></button>:<Preview service={s} photo={photo}/>}
+              {photo.preview_ready?<button className="photo-preview-trigger" type="button" aria-label={'Open preview '+photo.filename} onClick={event=>{event.currentTarget.focus({preventScroll:true});viewerOpener.current=photo.id;setViewerId(photo.id);}}><Preview service={s} photo={photo} eager={visible.length>100||index<24}/></button>:<Preview service={s} photo={photo}/>}
               <div className="cardbody">
                 <span className="detail-tag selection-tag">{manual?(included?'Manually included':'Manually excluded'):included?(reviewIds.has(photo.id)?'To review · included in proposal':draftSelection?'Automatic proposal':'Candidate'):'Outside selection'}</span>
 
@@ -340,7 +345,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
                 </div>
                 {suggestion&&photoMap.has(suggestion)&&<button className="text-button" onClick={()=>{setCompare([photo.id,suggestion]);setZoom(100);setShowCompare(true);}}>Suggested comparison</button>}
                 <div className="photo-footer"><label className="check"><input type="checkbox" checked={compare.includes(photo.id)} onChange={()=>chooseCompare(photo.id)}/>Compare</label>
-                  {(g||s.proposal?.reasons[photo.id]||s.proposal?.shortlist_reasons?.[photo.id])&&<details className="photo-reason"><summary>Reason</summary>
+                  {(g||s.proposal?.reasons[photo.id]||s.proposal?.shortlist_reasons?.[photo.id])&&<details className="photo-reason" open={expandedReasons.has(photo.id)} onToggle={event=>{const open=event.currentTarget.open;setExpandedReasons(previous=>{if(previous.has(photo.id)===open)return previous;const next=new Set(previous);if(open)next.add(photo.id);else next.delete(photo.id);return next;});}}><summary>Reason</summary>
                     {g&&<p>{!g.representative?'Group without candidates':g.representative===photo.id?'Group representative':('Represented by '+(photoMap.get(g.representative)?.filename??'another photo'))}</p>}
                     <p>{s.proposal?.shortlist_reasons?.[photo.id]??s.proposal?.reasons[photo.id]??g?.reason}</p>
                     {g?.representative&&selectedIds.has(g.representative)&&!selectedIds.has(photo.id)&&!d.locked&&!s.decisions[g.representative]?.locked&&<button disabled={busy} onClick={()=>void replace(g.representative!,photo.id)}>Replace representative</button>}
@@ -348,8 +353,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
                 </div>
               </div>
             </article>;
-          })}
-        </div>
+          }}/>
         <footer className="gallery-footer"><span>{s.proposal?(apiProposal?'OpenAI proposal · manual review available':'Local proposal · manual review available'):'Manual selection · all photos start as candidates'}</span><span>Excluding does not delete the file</span></footer>
       </section>
       <aside className="inspector" aria-label="Selection tools">
@@ -365,14 +369,14 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
             </div>
             <div className="tool-section">
               <label>Start from a preset<select value={presetChoice} onChange={e=>{const p=presets.find(p=>p.id+':'+p.version===e.target.value);if(p)applyPreset(p);else{setPresetChoice('');setDraft({...draft,preset_id:'',preset_version:0,preset_snapshot:null,service_criteria:[],subject_query:'',instructions:''});}}}>
-                <option value="">No preset · custom configuration</option>
+                <option value=''>No preset · custom configuration</option>
                 {presetChoice&&!offer&&snapshot&&<option value={presetChoice}>{snapshot.name} · v{snapshot.version} (service copy)</option>}
                 {presets.map(p=><option key={p.id} value={p.id+':'+p.version}>{p.name} · v{p.version}</option>)}
               </select></label>
               <div className="preset-actions"><button className="text-button" type="button" onClick={()=>editPreset(null)}>Save as new preset</button>{offer&&<button className="text-button" type="button" onClick={()=>editPreset(offer)}>Update preset</button>}</div>
               <p className="hint">{snapshot ? 'Applied base: '+snapshot.name+' · v'+snapshot.version+'. The text below is an editable copy for this service.' : 'No preset applied. You can configure this service directly.'}</p>
               {snapshot&&<button className="text-button" type="button" onClick={()=>{setPresetChoice('');setDraft({...draft,preset_id:'',preset_version:0,preset_snapshot:null,service_criteria:[],subject_query:'',instructions:''});}}>Remove preset and criteria</button>}
-              <label>Workflow<select value={draftRoute} onChange={e=>{const workflow_path=e.target.value as 'local'|'hybrid'|'openai';setDraft({...draft,workflow_path,mode:workflow_path==='local'?'local':'hybrid'});}}><option value="local">Local only</option><option value="hybrid">Local + OpenAI</option><option value="openai">Directly with OpenAI</option></select></label>{draftRoute!=='local'&&<button type="button" className="text-button" onClick={()=>{const details=document.querySelector<HTMLDetailsElement>('.app-settings');if(details){details.open=true;details.scrollIntoView({block:'start'});details.querySelector<HTMLElement>('summary')?.focus();}}}>Configure OpenAI key and model</button>}
+              <label>Workflow<select value={draftRoute} onChange={e=>{const workflow_path=e.target.value as 'local'|'hybrid'|'openai';setDraft({...draft,workflow_path,mode:workflow_path==='local'?'local':'hybrid'});}}><option value='local'>Local only</option><option value='hybrid'>Local + OpenAI</option><option value='openai'>Directly with OpenAI</option></select></label>{draftRoute!=='local'&&<button type="button" className="text-button" onClick={()=>{const details=document.querySelector<HTMLDetailsElement>('.app-settings');if(details){details.open=true;details.scrollIntoView({block:'start'});details.querySelector<HTMLElement>('summary')?.focus();}}}>Configure OpenAI key and model</button>}
             </div>
             <section className="tool-section">
               <h2>Service instructions and criteria</h2>
@@ -393,7 +397,7 @@ function Workspace({service:s,update,presets,setPresets,dirty,refreshSummaries,f
         {phase==='outcome'&&s.receipts.length>0&&<section className="tool-section"><h2>{currentOutcome?'Lightroom results':'Previous Lightroom results'}</h2>{s.receipts.map(r=><details key={r.batch_id}><summary>{r.results.filter(i=>i.status==='applied').length} ratings applied · {r.results.length} photos checked</summary><ul>{r.results.map(i=><li key={i.photo_id}>{photoMap.get(i.photo_id)?.filename??i.photo_id}: {({applied:'Applied',skipped:'Skipped',conflict:'Conflict',uncertain:'To check'} as Record<string,string>)[i.status]??i.status} — {i.reason}</li>)}</ul></details>)}</section>}
       </aside>
     </div>
-    {viewerPhoto&&<Modal title="Photo preview" className="photo-viewer" close={()=>setViewerId(null)} onKeyDownCapture={e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();moveViewer(e.key==='ArrowLeft'?-1:1);}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setViewerId(null);}}}>
+    {viewerPhoto&&<Modal title="Photo preview" className="photo-viewer" close={closeViewer} onKeyDownCapture={e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();moveViewer(e.key==='ArrowLeft'?-1:1);}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeViewer();}}}>
       <p className="viewer-caption" aria-live="polite"><strong>{viewerPhoto.filename}</strong><span>{viewerIndex+1} / {visible.length}</span></p>
       <figure className="viewer-image">{viewerPhoto.preview_ready?<img src={'/api'+photoPath(s.id,viewerPhoto.id)+'/preview'} alt={viewerPhoto.filename}/>:<span className="viewer-unavailable">Preview unavailable</span>}</figure>
       <div className="viewer-navigation"><button type="button" aria-label="Previous photo" disabled={viewerIndex<=0} onClick={()=>moveViewer(-1)}>← Previous</button><p className="hint">Local preview · ← → to navigate · Esc to close</p><button type="button" aria-label="Next photo" disabled={viewerIndex>=visible.length-1} onClick={()=>moveViewer(1)}>Next →</button></div>

@@ -348,3 +348,17 @@ a clean installation on another Mac was not performed. Pre-publication checks fo
 no real credentials, photos, catalogs or runtime databases in tracked files or the
 examined history. These are historical upstream results, not a new English-edition
 native or clean-install certification.
+
+## 2026-11-19 — Virtualized contact sheet for 5,000 photos
+
+The contact sheet and API picker use measured virtual rows, offscreen keyboard
+focus and preserved expandable reasons. Selection, filters and viewer navigation
+operate on the full list; no data migration is needed. All 68 frontend tests,
+typecheck and build passed, as did both standard browser smokes with synthetic
+fixtures and mocked API transport. The 5,000-record browser test passed scrolling,
+filters, undo/redo, keyboard navigation, viewer, API picker and mobile layout:
+20 initially mounted cards rather than 5,000, with no initial scroll jump.
+See [performance.md](performance.md) for the reproducible comparison.
+Production backend and Lua plugin are unchanged. No catalogs, original photos or
+sidecars were accessed; no real cloud analysis ran. Safari and the owner's real
+service still require manual verification.

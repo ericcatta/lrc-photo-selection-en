@@ -1,6 +1,7 @@
 """Isolated synthetic UI fixture. Never points to a Lightroom catalog."""
 import argparse
 import io
+import os
 import tempfile
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -21,7 +22,9 @@ def isolate_config(app):
     return app
 
 def make_app(root):
-    app = isolate_config(create_app(root, token=TOKEN))
+    # Test-only override keeps staged builds separate from the installed UI.
+    web_dir = Path(os.environ['LRC_SMOKE_WEB_DIR']) if os.environ.get('LRC_SMOKE_WEB_DIR') else None
+    app = isolate_config(create_app(root, token=TOKEN, web_dir=web_dir))
     with TestClient(app) as c:
         c.headers['Authorization'] = 'Bearer ' + TOKEN
         photos = [{'id': f'synthetic-{i}', 'uuid': f'synthetic-uuid-{i}', 'local_id': i,
@@ -42,7 +45,7 @@ def make_app(root):
             c.put(f'/api/services/synthetic-ui/photos/synthetic-{i}/preview', content=output.getvalue()).raise_for_status()
         c.post('/api/services/synthetic-ui/complete').raise_for_status()
     # TestClient lifespan shut down executor; create a fresh runtime for the server.
-    return isolate_config(create_app(root, token=TOKEN))
+    return isolate_config(create_app(root, token=TOKEN, web_dir=web_dir))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
