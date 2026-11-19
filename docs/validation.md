@@ -1,246 +1,350 @@
-# Verifica dell’implementazione
-
-## Aggiornamento dopo audit — 18 novembre 2026
-
-- **47 test backend/SDK simulati passati**, inclusi i 15 test Lua; **13 test React passati**; build TypeScript/Vite riuscita.
-- Regressioni: piani A/B e ripresa dopo riavvio, conferma esatta, annullamento durante attesa del write gate, riuso ricevuta esistente, import incrementale idempotente, catalogo errato e identità in conflitto, protezione baseline/decisioni/target, cronologia persistente e sostituzione atomica, compatibilità digest manifest v1, archivio e riapertura.
-- Analisi locale esplicita e cache verificate con encoder/detector sintetici: ripresa dopo interruzione, invalidazione per versione del modello, errore di rilevamento non memorizzato. NumPy installato nel venv per il test dei vicini visivi; nessun peso IA scaricato.
-- Prova integrata `scripts/browser_smoke.mjs` con Chrome headless e backend HTTP reale: decisione, annulla/ripristina, analisi Apple Vision su anteprime uniformi sintetiche, confronto e risoluzione, piano confermato, claim e ricevuta SDK simulata, aggiunta foto, archivio e riapertura. Nessuna stella reale applicata. Desktop 1500 px e mobile 390 px senza overflow.
-- `scripts/benchmark_scale.py`, rilevazione prima dell’integrazione finale: 1.000 elementi, dettaglio circa 16 ms, baseline 0,087 s; 5.000 elementi, dettaglio circa 63 ms, baseline 1,002 s. Tutte le candidate conservate. Solo metadati e una preview sintetica per servizio; non è un benchmark RAW, IA o del rendering di migliaia di miniature.
-- Ritentato accesso Finder: `cgWindowNotFound`. **Collaudo reale Lightroom non eseguito.** Restano da verificare `lastEditTime`, disponibilità delle anteprime JPEG senza originali, comportamento della selezione con filtri e semantica SDK reale.
-- La raccolta locale facoltativa è rinviata fino a tale collaudo; nessuna creazione o sincronizzazione di raccolte presente nel codice. Nessun modello semantico calibrato sul campione reale, nessuna API OpenAI avviata.
-
-Annulla/ripristina agisce sulle decisioni manuali; non annulla le analisi o le stelle Lightroom. Le garanzie di serializzazione dei test riguardano le normali operazioni SDK del plugin e i controlli nel write gate, non un’esecuzione arbitraria di più processi indipendenti sullo stesso catalogo.
-
-## Verifica iniziale 0.1.0 (storico)
-
-## Eseguito sul Mac
-
-- Backend/API e simulazione SDK Lua 5.1: **32 test passati** (`.venv/bin/python -m pytest -q`).
-- Componenti React in DOM simulato: **7 test passati** (`npm --prefix web test`).
-- Build TypeScript/Vite completata; controllo dipendenze Python superato.
-- Prova HTTP con server reale su loopback e sei anteprime sintetiche: asset compilati, autenticazione cookie, importazione, selezione conservativa (5 candidate per target 3) e piano di 4 rating idonei verificati. Server temporaneo arrestato dopo la prova.
-- Apple Vision compilato con Swift e provato su un'immagine sintetica uniforme: nessun volto rilevato, nessun errore.
-- Nessuna fotografia personale utilizzata nei test. Nessun catalogo letto tramite SQL o modificato direttamente.
-
-I test coprono importazione idempotente, nomi duplicati, copie virtuali nel manifest, revisione concorrente, preset immutabili per servizio, target e copertura prudente, decisioni manuali, budget di spazio disco, ripresa, token e origine delle richieste, claim esclusivo delle stelle, journal prima della mutazione, conservazione rating e timestamp, annullamento e ricevute.
-
-## Limiti aperti
-
-La prova SDK reale su Lightroom Classic 16.0 è bloccata da `cgWindowNotFound` nella sessione grafica. Non è stato aperto Lightroom. Il campione autorizzato è il catalogo vecchio JPEG con le sue anteprime; il catalogo principale non autorizzato è escluso dal collaudo. Non dichiarare la compatibilità Lightroom reale come già certificata.
-
-Verificare in particolare il comportamento di `lastEditTime` dopo una modifica manuale 0 → 3 → 0 stelle: i test simulati validano il confronto, non provano la semantica del campo Adobe. Se Lightroom non segnala questo cambiamento, il confronto non può rilevare quella sequenza e la procedura di importazione/applicazione va rivista prima dell'uso operativo.
-
-La registrazione distingue cataloghi per percorso e fotografie per UUID + localIdentifier. Non distingue automaticamente la sostituzione del file catalogo allo stesso percorso con una copia che conserva gli stessi identificativi: in quel caso non riutilizzare servizi precedenti e registrare nuovamente il catalogo.
-
-Il journal locale con flush/close e rinomina protegge dalle interruzioni del processo; non è una garanzia contro guasti hardware o perdita di alimentazione prima della persistenza fisica del filesystem.
-
-La baseline confronta JPEG identici e conserva tutto il resto. Non sono calibrati modelli semantici, riconoscimento persone, scene, occhi chiusi, pose o punteggi estetici. SigLIP 2 non è stato scaricato né eseguito. Le evidenze opzionali non influenzano automaticamente le esclusioni. Offset temporali usati dall’ordinamento cronologico della web app; non sono evidenza di equivalenza nel motore.
-
-Modalità OpenAI non implementata/abilitata per l'analisi: mancano campione misurato, scelta modello, configurazione Keychain, stima e budget autorizzato. Nessuna richiesta API o spesa è stata effettuata.
-
-## Audit dipendenze web
-
-`npm audit --omit=dev`: **0 vulnerabilità**. L'audit completo segnala la catena di strumenti di sviluppo basata su picomatch (ReDoS, GHSA-fc5q-39xc-vjpf), senza correzione pubblicata nella fonte consultata il 18 novembre 2026. Non adottare automaticamente il downgrade suggerito dall'audit. Il prodotto serve solo asset statici dal backend Python: Vite/Vitest e i glob di build non ricevono input dell'utente né sono esposti come servizio dell'app. Rivalutare l'advisory prima di aggiornare gli strumenti o esporre un dev server.
-
-Fonte: https://github.com/advisories/GHSA-fc5q-39xc-vjpf
-
-Un avviso di deprecazione Starlette riguarda il test client httpx; i test passano. Nessun errore di esecuzione rilevato nei controlli svolti.
-
-## Revisione dell’interfaccia
-
-Layout a pagina unica con provino principale, strumenti laterali, palette neutra chiara e barra superiore scura. Slider quantità sincronizzato con inserimento numerico preciso; slider separato per la dimensione delle anteprime. I dettagli dei criteri restano espandibili e i limiti del motore sono visibili.
-
-Verificati build e 7 test React, compresi sincronizzazione slider/campo, limiti della quantità e assenza di avvio implicito. Acquisito screenshot reale con Chrome headless autorizzato e sei anteprime sintetiche; controllo desktop a 1500 px e mobile a 390 px senza overflow orizzontale. Nessun catalogo o fotografia reale coinvolto.
-
-## Aggiornamento SDK reale — 18 novembre 2026
-
-Il proprietario ha aperto e autorizzato `catalogo-di-prova.lrcat`, cartella cartella del campione autorizzato. Installazione e connessione riuscite; primo import bloccato da `os.rename` assente nel runtime Adobe, corretto con API SDK e test di persistenza. Dettagli e limiti aggiornati in `lightroom-test.md`. Le precedenti note sul blocco `cgWindowNotFound` descrivono i tentativi iniziali: ora il controllo funziona parzialmente, con timeout sui dialoghi. Il flusso reale completo e l’applicazione delle stelle restano da verificare.
-
-## Istruzioni libere e preset — collaudo 18 novembre 2026
-
-- 100 test backend passati nella sandbox; test Apple Vision separato su fixture sintetica passato fuori sandbox (101 complessivi). 18 test frontend e build passati. Browser smoke sintetico desktop/mobile passato senza overflow a 390 px.
-- Qwen3-VL 4B MLX eseguito offline sulle 160 anteprime autorizzate di Campione di prova. Richiesta di benchmark «uccelli», senza criteri Matrimonio, target 7: 70 yes, 62 no, 28 uncertain, circa 463 secondi prima del riordinamento per diversità. Questi sono giudizi del modello, non etichette manuali di verità.
-- Riordinamento dei yes tramite SigLIP: circa 7 secondi. Ispezionato il provino delle 7 proposte: tutte mostrano uccelli, con soggetti a terra e in volo. Non misurati recall globale, qualità comparativa, errori nelle 28 incerte o copertura delle situazioni.
-- Controllo negativo su due anteprime: «Seleziona solo fotografie di elefanti» restituisce zero proposte e avviso di nessuna corrispondenza rilevata; nessun riempimento forzato. Non costituisce una verifica dell’assenza su tutte le 160 foto.
-- Benchmark separato: le impostazioni e decisioni del servizio reale non sono state sostituite, nessuna stella applicata. Per riprodurlo usare scripts/benchmark_instructions.py con un servizio autorizzato. Report completi e immagini restano solo nello spazio dati locale escluso da Git.
-- Il runtime registra hash e versioni per cache/ripresa. I test verificano testo originale integro in valutazioni locali e payload OpenAI, criteri ambigui, preferenze, casi non pertinenti e manuali. Non è una promessa di interpretazione corretta di qualsiasi testo.
-- OpenAI: configurazione chiave/modello e payload implementati e testati senza rete. Keychain nativo non collaudato con chiave reale. Trasporto di analisi, stima/budget/consumi e prova API reale restano da completare; nessuna spesa.
-
-## Flusso OpenAI — aggiornamento 18 novembre 2026
-
-Trasporto Responses, stima, budget persistente per servizio, conferma del campione, testo originale, cancellazione/ripresa, cache e ricevute implementati. Le precedenti note «non abilitato» descrivono lo stato iniziale e sono superate. 118 test backend passati (escluso il test Apple Vision già verificato nella sessione precedente). Quindici test specifici coprono il runner API, tre il catalogo modelli. Tutti i trasporti OpenAI sono simulati: nessuna foto reale inviata e nessuna spesa API effettuata. Keychain e disponibilità dei modelli con una chiave reale restano da collaudare.
-
-Frontend: 26 test passati e build produzione riuscita. Verifica sul backend riavviato: catalogo locale modelli disponibile, servizio reale senza job API, consumi e riserve a zero. Nessuna richiesta di aggiornamento modelli eseguita sull’account reale.
-
-Smoke browser API completo (`scripts/api_browser_smoke.mjs`): stima senza chiamate, conferma obbligatoria, testo Unicode/spazi identico, una chiamata simulata per due anteprime identiche tramite cache, consumo registrato e riserva rilasciata. Screenshot desktop prima/dopo e mobile verificati, nessun overflow a 390 px. Fixture separata, chiave falsa e trasporto sostituito prima dell’avvio del server; nessuna rete OpenAI.
-
-## Revisione della selezione complessiva e del flusso — 18 novembre 2026
-
-134 test backend passati (Apple Vision invariato escluso), 32 test frontend passati, build produzione e diff check riusciti. Verificati copertura uccelli/ritratti con risposte sintetiche, prevalenza delle decisioni manuali, invalidazione delle vecchie cache, testo unico/preset, avvisi obsoleti, API diretta, stima senza budget obbligatorio, confronto globale, ranking invalido, riserve/costi, ripresa, vecchi piani rifiutati e numero finale modificabile senza chiamate.
-
-Entrambi gli smoke browser sono passati con sole fixture sintetiche. Il flusso API ha eseguito tre richieste simulate: interpretazione, una valutazione riutilizzata per due anteprime identiche, confronto globale. Stima senza trasporto, consenso esplicito, testo originale intatto e ricomposizione 1→2 senza nuove richieste. Screenshot desktop/mobile ispezionati.
-
-Backend riavviato senza analisi attive; verifica in sola lettura del servizio reale: nessun invio, consumo o riserva API. La precisione del nuovo riconoscimento di categorie e del confronto globale su Campione di prova resta da verificare con la prova manuale dell’utente. I risultati precedenti non sono stati ricalcolati automaticamente. Per usare la nuova logica locale avviare una nuova analisi; per OpenAI ricalcolare la stima, poiché i piani precedenti non comprendono il confronto globale.
-
-## 2026-11-18 — Risposte locali incomplete e scorrimento
-
-Diagnosi in sola lettura del test autorizzato Campione di prova: 150 risposte non valide su 160, 8 non corrispondenti e 2 corrispondenti. La precedente pipeline dichiarava comunque completata la proposta. Una categoria conteneva inoltre il segnaposto letterale del prompt invece dei tre soggetti richiesti. La causa precisa degli output non validi non è dimostrabile senza gli output grezzi, che non erano conservati.
-
-Prompt locale v6: schema compatto, massimo 1024 token, categorie validate durante il tentativo di riparazione, rifiuto dei segnaposto. Cache precedente invalidata tramite versione. Le risposte incomplete impediscono una nuova proposta e mantengono le decisioni; la vecchia proposta è segnalata come obsoleta. Nessuna garanzia di qualità del modello deriva dai test sintetici. Il numero richiesto non giustifica inventare corrispondenze: una proposta incompleta richiede correzione/verifica.
-
-Interfaccia: tutte le schede del filtro sono scorribili senza pulsante di caricamento; anteprime lazy per contenere il carico. Test: 140 backend superati (test Apple Vision escluso perché il processo helper non è disponibile nella sandbox), 34 frontend superati e build riuscita. Nessuna nuova inferenza reale o richiesta OpenAI eseguita durante questa correzione.
-
-## Sostituzione locale autorizzata: Qwen3.5-9B
-
-Il proprietario ha richiesto la sostituzione anche dopo aver ricevuto l'esito sintetico negativo sulla copertura (vedi docs/models.md). Installati MLX-VLM 0.4.3 e miniaudio 1.73; pip check riuscito. Caricamento offline nel runtime definitivo verificato senza inferenza. Attivato Qwen3.5-9B-MLX-4bit mediante configurazione atomica; backend riavviato e capacità istruzioni verificata. Rimosso esclusivamente il precedente Qwen3-VL-4B dopo confronto della provenienza: 3.109.734.493 byte. SigLIP preservato perché componente distinto. Nessun servizio, decisione manuale, foto originale o valutazione Lightroom modificato; nessuna richiesta OpenAI. 144 test backend superati, uno Apple Vision escluso come nel controllo precedente.
-
-## 19 novembre 2026 — Blocco prima della lettura delle fotografie
-
-Diagnosi in sola lettura: 0 tentativi, 0 risposte non valide, 160 foto non valutate, 160 candidate ancora salvate. Il 9B aveva inventato ambiguità e limitazioni generiche interpretando l'elenco «uccelli, ritratti, landscape»; la pipeline aveva confuso blocco delle istruzioni e fallimento delle risposte visive.
-
-Correzione v9: parser conservativo solo per elenchi di singole parole minuscole, senza operatori o criteri aggiuntivi; il resto resta affidato al modello. Originale preservato. Distinzione esplicita tra categorie alternative nella raccolta e compresenza richiesta nella stessa foto. Nessun criterio derivato viene aggiunto alle istruzioni effettive della valutazione visiva. Rimossi suggerimenti di soggetti non richiesti dal prompt generale. Contraddizioni e istruzioni non verificabili restano da chiarire; le risposte incoerenti vengono ritentate/respinte, non convertite artificialmente in corrispondenze. Cache invalidata dalla revisione v9.
-
-I fallimenti ora indicano la causa e mantengono separati risultati parziali e interpretazioni precedenti. L'interfaccia mostra le candidate salvate anche quando il primo tentativo fallisce; corregge in lettura il vecchio messaggio «0 risposte non valide», senza riscrivere il servizio.
-
-Verifica reale del modello su sole figure sintetiche: 11/11 controlli superati, 61,05 secondi, picco MLX circa 7,71 GB. Report [v9](benchmarks/local-model-9b-v9.json); i tentativi falliti v7/v8 restano tracciati. Riproducibile con scripts/check_local_model.py. Questi controlli non validano il merito fotografico o l'affidabilità generale delle istruzioni. Nessuna nuova analisi delle foto dell'utente, richiesta API o modifica di stelle.
-
-## 19 novembre — Conservare risultati incerti e recuperare una lettura parziale
-
-Ultimo tentativo Campione di prova: 160 immagini processate, 143 risposte positive, 14 negative, una incerta valida e due risposte non valide (schema/categorie). La precedente regola bloccava la proposta per quei due errori. Il proprietario ha precisato che gli esiti incerti devono essere inclusi.
-
-Politica locale `retain-uncertain-v1`: proposta ordinaria con copertura delle categorie confermate, poi aggiunta di tutte le immagini incerte, con risposta non valida, anteprima mancante o valutazione non disponibile, salvo esclusioni/alternative manuali. Queste immagini hanno indicazione da rivedere e non provano copertura. La conservazione sopravvive al riordinamento SigLIP, può superare il target, e non cambia né i giudizi originali né la selezione API condivisa. Nessuna modifica a prompt/modelli o invalidazione delle risposte valide in cache. Errori per foto non bloccano più l'intero servizio; ambiguità bloccanti della richiesta e errori globali restano fallimenti espliciti.
-
-L'accettazione manuale della proposta conserva lo stato da rivedere per queste immagini, senza sovrascrivere decisioni precedenti. Prima dell'accettazione rimane una proposta separata.
-
-Recupero preparato dai 160 risultati salvati: 15 proposte ordinarie più 3 da rivedere, senza nuove inferenze, letture di immagini, chiamate API o stelle. Verificati revisione del servizio, testo originale, criteri, identità e hash delle anteprime nei metadati prima di scrivere. Il recupero usa la classifica per preferenze/scene già valutate, senza ricalcolare embedding.
-
-Recupero applicato alla sola proposta locale (revisione 179 → 180): 18 proposte, di cui 3 da rivedere; decisioni e stelle non modificate. Verifica: 172 test backend superati (uno Apple Vision escluso), 36 frontend superati e build riuscita.
-
-### 2026-11-19 — Connessione API HTTPS
-Il runtime Python macOS non aveva CA nel contesto SSL predefinito (0 certificati):
-handshake senza autenticazione verso api.openai.com fallito con verifica certificato,
-riuscito TLS 1.3 con certifi. Analisi e discovery modelli usano ora esplicitamente
-il bundle certifi, mantenendo verifica certificati e hostname. Errori API/rete
-sono classificati con messaggi fissi, senza esporre risposte provider o segreti.
-Nessuna nuova analisi cloud eseguita per questa verifica; la causa esatta del
-precedente tentativo non è recuperabile dal vecchio messaggio generico. Riserve
-precedenti conservate, senza inferire un addebito né avviare retry automatici.
-
-### 2026-11-19 — Risposta fotografica API non utilizzabile
-Nel tentativo reale sono rimaste salvate 15 valutazioni su 18. Il vecchio registro
-non permette di distinguere rifiuto, risposta incompleta e violazione dello schema.
-Ora questi esiti, quando il consumo è verificabile, conservano la foto come incerta
-e consentono di proseguire con le altre richieste già confermate, senza retry.
-Gli incerti restano nella proposta finale, salvo decisioni manuali di esclusione;
-non attestano copertura delle categorie. Errori di rete, consumo non verificabile,
-interpretazione o confronto globale continuano a sospendere il flusso.
-Diagnostica sintetica salvata nelle ricevute, senza risposte grezze del provider.
-Nessuna nuova chiamata cloud eseguita durante la correzione.
-
-
-### 2026-11-19 — Flusso guidato Lightroom → web → Lightroom
-
-Implementati i cinque passaggi persistenti, i tre percorsi, la ripresa del
-campione interrotto e il riepilogo del solo esito corrente. Guida locale condivisa
-fra web e Lua; attestazione XMP richiesta prima di abilitare Applica stelle.
-
-Verifiche sintetiche: 193 test backend superati (uno Apple Vision escluso perché
-il relativo helper non è disponibile nel contesto di test), 48 test frontend
-superati, TypeScript e build produzione riusciti. Verifica copie guida e nomi
-comandi riuscita. I test comprendono percorso locale/ibrido/diretto, ripresa,
-incompatibilità, budget insufficiente, incerti, criteri modificati, ripristino
-della fase, piano obsoleto, zero modifiche, esito parziale e focus da tastiera.
-
-Entrambi gli smoke test Chrome headless sono passati su fixture sintetiche:
-nessuna chiamata cloud reale; confronto, decisioni manuali e annulla/ripristina,
-piano esatto, ricevuta simulata, aggiunta, archivio, preset, consenso API,
-riutilizzo dei risultati e assenza di overflow orizzontale a 390 pixel.
-Ispezionato il nuovo provino desktop; colori e stile esistenti mantenuti.
-
-Il backend locale è stato riavviato dopo verifica dello stato inattivo. La lettura
-del servizio esistente ha confermato la fase Esito con 10 candidate e ricevuta
-precedente di 4 stelle applicate; nessuna analisi o nuova applicazione eseguita.
-Il rendering nativo della guida e l’abilitazione del pulsante in Lightroom restano
-da collaudare manualmente dopo ricaricamento del plugin. Il precedente successo
-manuale del flusso non sostituisce il collaudo di questi nuovi dialoghi.
-
-
-### 2026-11-19 — Avvio API, revisione manuale e proposta vuota
-
-La conferma API riuscita chiude il riepilogo e porta al progresso Analizza;
-un rifiuto del server lascia il dialogo aperto con il motivo. La vista completa
-indica appartenenza alla selezione e offre Includi/Escludi. Conteggi, filtri e
-accettazione usano la proposta con le decisioni manuali sovrapposte. Una proposta
-vuota mostra tutte le foto e permette di costruire esplicitamente una selezione.
-
-La richiesta generale di qualità e variabilità viene descritta al modello come
-valida senza categorie di soggetti obbligatorie. Nuova versione della cache di
-interpretazione e confronto; chiavi delle valutazioni fotografiche preservate.
-Le vere ambiguità interrompono il flusso come blocked, senza applicare una proposta
-vuota; riconosciuti in sola lettura anche i vecchi casi completed con zero foto
-valutate. L’accettazione manuale esplicita permette il ritorno in Lightroom senza
-cancellare la diagnostica del blocco.
-
-200 test backend superati (helper Apple Vision escluso), 53 frontend e build
-riusciti. Verificato in sola lettura il caso segnalato: fase Configura, blocco
-esplicito, campione precedente di nove foto recuperabile, zero valutazioni
-fotografiche completate. Nessuna nuova chiamata reale o modifica alle foto.
-La nuova interpretazione del caso reale resta da provare con nuova stima e
-conferma dell’utente; i test usano risposte simulate.
-
-Entrambi gli smoke browser aggiornati superati: chiusura automatica dopo conferma,
-riapertura dettagli, zero invii reali, modifica della quantità senza nuove chiamate,
-proposta vuota con tutte le sei fixture visibili, inclusione/esclusione manuale
-con conferma di copertura e accettazione esatta di una foto. Nessun overflow a
-390 pixel. Verificata visivamente la distinzione selezionata/non selezionata.
-
-### 2026-11-19 — Anteprima navigabile e catalogo API esteso
-
-Click sull’anteprima apre un dialogo grande nello stile esistente; frecce,
-Precedente/Successiva ed Esc funzionano sul sottoinsieme e nell’ordine del provino.
-Il focus torna alla foto iniziale. Nessuna decisione viene modificata aprendo o
-navigando il visualizzatore; le anteprime mancanti hanno un messaggio dedicato.
-
-Il catalogo API distingue modelli verificati, famiglie candidate e modelli
-incompatibili. Le famiglie candidate sono selezionabili senza tariffa; un invio
-senza prezzo richiede un consenso esplicito distinto nel payload. Budget salvato
-preservato, ricevute monetarie sconosciute nulle e consumi parziali dichiarati.
-I parametri di ragionamento sono adattati alle famiglie. Nessun cambio automatico
-del modello e nessuna inferenza per aggiornare la lista.
-
-205 test backend superati (1 helper Apple Vision escluso), 61 test frontend e
-build riusciti. Smoke Chrome headless con fixture sintetiche superato, inclusi
-navigazione foto, Escape, ritorno focus, flusso stelle simulato e viewport mobile.
-Ispezionata l’anteprima grande sintetica. Aggiornato realmente solo `/v1/models`:
-l’account espone GPT-6.2 Sol e Astra. Le risposte di analisi dei nuovi modelli sono
-state simulate nei test; qualità visiva e compatibilità effettiva delle famiglie
-non verificate richiedono un invio esplicitamente confermato dall’utente.
-
-Backend riavviato dopo verifica di entrambi i servizi inattivi. La lettura finale
-mostra 44 identificativi compatibili o candidati disponibili (incluse snapshot),
-GPT-6.2 Sol/Astra disponibili e modello scelto ancora GPT-5.4 mini. Nessuna
-modifica ai risultati o alle selezioni esistenti.
-
-### 2026-11-19 — Situazioni distinte prima delle varianti
-
-La selezione condivisa conserva una rappresentante per ciascun gruppo distinto
-prima delle seconde e terze varianti; il target resta morbido. Verificati con
-fixture sintetiche 10 gruppi → 20 foto bilanciate e 23 gruppi → 23 foto con target
-20, inclusioni manuali conteggiate, esclusioni, categorie e incerti preservati.
-Il locale usa firme prudenti delle anteprime e, quando presenti, embedding;
-strutture uniformi e soggetti minuscoli non sono automaticamente equivalenti.
-Testato il raggruppamento completo senza catene di somiglianza. Il confronto API
-valida una partizione completa degli indici pertinenti; cache individuali
-preservate, nuova versione soltanto del confronto globale.
-
-222 test backend superati (helper Apple Vision escluso), 62 frontend e build
-riusciti. Entrambi gli smoke Chrome headless superati, zero chiamate cloud reali
-né accesso ai cataloghi. La qualità dei nuovi gruppi su fotografie reali resta
-da verificare manualmente; le proposte precedenti non sono ricalcolate da sole.
-
-README riscritto con guida pubblica d’installazione e uso; aggiunto
-scripts/install.command. Sintassi shell, link locali e sequenza dell’installer
-verificati con comandi simulati. Installazione da zero su un altro Mac non
-eseguita. Revisione pre-pubblicazione: nessuna credenziale reale, foto, catalogo
-o database runtime individuati nei file tracciati e nella cronologia esaminata.
+# Implementation validation
+
+## Provenance and English-edition limits
+
+The dated records below describe validation of the original upstream edition.
+They are historical evidence, not claims that the English edition has been tested
+natively in Lightroom or on another Mac. The English edition uses separate runtime
+storage, keychain namespaces and port 8766. No original-edition user service or
+credential is copied into this repository.
+
+Raw benchmark JSON in `docs/benchmarks/` is intentionally preserved in its original
+language, including Italian prompts and model responses. Translating a measured
+response would alter the evidence. The English summaries below explain those
+records without changing their results. Native English dialogs, current model
+behavior and a clean installation on another Mac need their own tests.
+
+## English edition — automated verification on November 19, 2026
+
+The integrated English checkout passed 226 backend tests with one Apple Vision
+helper test deselected, plus 62 frontend tests and a successful production build.
+The general synthetic headless browser smoke passed, including the larger viewer,
+keyboard navigation/focus, review, simulated rating workflow and mobile layout.
+No real OpenAI analysis or native English Lightroom execution was performed by
+these checks. The English API browser smoke also passed: three simulated requests and zero real
+network calls, acknowledgement gating, cache reuse, empty-proposal manual review,
+and no horizontal overflow at 390 pixels. Native English SDK dialogs and a clean installation
+on another Mac remain unverified.
+
+## Initial version 0.1.0 — historical
+
+On the upstream Mac, 32 backend/API/Lua 5.1 simulation tests and 7 React tests passed.
+TypeScript/Vite built and Python dependencies checked successfully. A real loopback
+HTTP server with six synthetic previews verified compiled assets, cookie login,
+import, conservative selection (five candidates for target three) and four eligible
+rating-plan items. The temporary server was stopped afterward. Apple Vision was
+compiled with Swift and run on a uniform synthetic image: zero faces, no error.
+No personal photographs or direct Lightroom catalog database access were involved.
+
+Coverage included idempotent import, duplicate filenames, virtual copies, revision
+conflicts, immutable service presets, target/coverage behavior, manual decisions,
+disk budgeting, resumption, token/origin guards, exclusive claims, journal-before-write,
+rating/edit-time preservation, cancellation and receipts.
+
+At that stage, Lightroom Classic 16.0 native testing was blocked by
+`cgWindowNotFound`; Lightroom had not been opened. The authorized old test catalog
+was separate from the unapproved primary catalog. In particular, `lastEditTime`
+semantics after a manual zero → three → zero rating sequence remained unverified:
+a simulated comparison cannot prove Adobe updates that field for such a sequence.
+Catalog identity combines registered path and photo UUID/localIdentifier; replacing
+a catalog at the same path with a copy retaining IDs is not automatically detected.
+Do not reuse old services in that case; register the catalog again.
+
+Flush/close and move journals protect process interruption, not hardware failure or
+power loss before physical filesystem persistence. The initial baseline grouped
+identical JPEGs only. Semantic models, people/scenes/eyes/poses and aesthetic scores
+were uncalibrated; SigLIP had not yet been downloaded. Camera time offsets affected
+chronological display, not equivalence. OpenAI analysis was not enabled at that
+historical point; later sections supersede that status.
+
+## Post-audit update — November 18, 2026
+
+- 47 backend/simulated SDK tests passed, including 15 Lua tests; 13 React tests and
+  TypeScript/Vite build passed.
+- Regressions covered competing A/B plans, active-plan recovery after restart,
+  exact confirmation, cancellation during write-gate wait, reused receipts,
+  idempotent incremental import, catalog/identity conflicts, preserved baseline,
+  decisions/target, persistent history, atomic replacement, version 1 manifest
+  digest compatibility, archiving and reopening.
+- Explicit local extraction and cache were tested with synthetic encoders/detectors:
+  recovery, model-version invalidation and uncached detector failures. NumPy was
+  installed for visual-neighbor tests; no model weights were downloaded for them.
+- `scripts/browser_smoke.mjs` used headless Chrome and a real local HTTP backend
+  with synthetic previews: decisions, undo/redo, local Apple Vision extraction,
+  comparison/resolution, confirmed plan, claim, simulated SDK receipt, append,
+  archive/reopen. No real ratings changed. Desktop 1500 px and mobile 390 px had
+  no horizontal overflow.
+- The pre-integration scale benchmark measured 1,000 records: about 16 ms for
+  details and 0.087 s baseline; 5,000: about 63 ms and 1.002 s. All candidates were
+  preserved. Only metadata and one synthetic preview per service were used; this
+  was not a RAW, AI or thousands-of-thumbnails rendering benchmark.
+- Finder still returned `cgWindowNotFound`; native `lastEditTime`, offline-original
+  thumbnail availability, filtered candidate selection and SDK semantics remained
+  untested. Optional collection creation/synchronization remained absent, with no
+  calibrated real-sample semantic model and no OpenAI analysis calls.
+
+Undo/redo affects manual decisions, not analysis or Lightroom stars. Serialization
+tests cover normal plugin SDK operations and write-gate checks, not arbitrary
+independent processes acting on the same catalog.
+
+## Web dependency audit and initial visual revision
+
+`npm audit --omit=dev` reported zero vulnerabilities. The complete audit identified
+a development-tool picomatch ReDoS chain,
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), with no fix
+published in the source consulted on November 18, 2026. The suggested downgrade
+was not applied automatically. The application serves static assets through Python;
+Vite/Vitest/build globs accept no product user input and are not exposed as an app
+service. Reassess the advisory before tool upgrades or exposing a development server.
+A Starlette/httpx test-client deprecation warning did not cause test failure.
+
+The initial single-page revision retained the main contact sheet, side tools, light
+neutral palette and dark header. Quantity slider/number input synchronized; preview
+size had a separate slider. Criteria details expanded and engine limits remained
+visible. Seven React tests/build passed. Authorized headless screenshots used six
+synthetic images; 1500 px desktop and 390 px mobile showed no horizontal overflow.
+
+## First real SDK work — November 18, 2026
+
+The owner opened an authorized test catalog and folder. Installation and connection
+succeeded. The first import failed because `os.rename` is unavailable in Adobe’s
+runtime; persistence switched to official file APIs with regression coverage.
+Initial `cgWindowNotFound` entries describe earlier attempts; graphical control
+subsequently worked partly, with dialog timeouts. Full round-trip/native rating
+validation was still pending at this point; see `lightroom-test.md` for the protocol.
+
+## Free text and presets — November 18, 2026
+
+100 sandbox backend tests passed, with the synthetic Apple Vision test separately
+passing outside the sandbox (101 total). Eighteen frontend tests, production build
+and synthetic desktop/mobile browser smoke passed with no overflow at 390 px.
+
+Qwen3-VL 4B MLX ran offline on 160 authorized previews using the original Italian
+request for birds, no Wedding criteria and target seven: 70 yes, 62 no, 28 uncertain,
+about 463 seconds before diversity reranking. These are model judgments, not manual
+truth labels. SigLIP reranking took about seven seconds. The seven proposals were
+visually inspected and showed ground/perched and flying birds. Global recall,
+comparative quality, the uncertain images and situation coverage were not measured.
+
+A negative request for elephants on two previews returned zero proposals and a
+missing-match warning without forced filling. This did not prove absence across
+all 160 photographs. The benchmark was separate from real service settings and
+decisions, changed no stars, and can be reproduced with
+`scripts/benchmark_instructions.py` on an authorized service. Complete reports and
+images stayed in local application storage outside Git.
+
+Hash/version cache and resumption tests covered exact original text in local and
+OpenAI payloads, ambiguity, preferences, nonmatches and manual decisions. They do
+not promise correct interpretation of arbitrary text. API key/model configuration
+and payload building were then tested without network; native Keychain, transport,
+budget/usage and real API testing were not yet complete.
+
+## OpenAI workflow — November 18, 2026
+
+Responses transport, estimates, persistent optional service budgeting, exact sample
+consent, original text, cancellation/resumption, cache and receipts were implemented.
+Earlier disabled/not-implemented notes were superseded. 118 backend tests passed,
+excluding the unchanged previously checked Apple Vision helper. Fifteen tests covered
+the API runner and three the model catalog. All transports were simulated; no real
+photo transmission or API cost was incurred by these tests. Real Keychain/account
+model discovery still required manual validation then.
+
+Twenty-six frontend tests and production build passed. Read-only checks after
+restart found a local model catalog, no API job on the real service, and zero API
+usage/reserves. No real-account model-refresh request was run during this check.
+The API browser smoke verified no transport during estimation, mandatory consent,
+identical Unicode/whitespace, one assessment reused for two identical previews,
+usage recording and reserve release. Desktop/mobile screenshots had no 390 px
+overflow. The isolated fixture replaced transport before server startup and used
+fake credentials, never OpenAI network access.
+
+## Whole-sample selection revision — November 18, 2026
+
+134 backend tests passed (Apple Vision excluded), 32 frontend tests, build and diff
+check passed. Synthetic cases covered birds/portraits coverage, manual precedence,
+old-cache invalidation, unified instructions/presets, stale warnings, direct API,
+optional budget, global comparison, invalid ranking, reserves/cost, resumption,
+rejected old plans and quantity recomposition without new calls.
+
+Both browser smokes passed. API made three simulated requests: interpretation, one
+assessment reused for two identical previews and global comparison. It preserved
+original text and recomposed one → two candidates without calls. Screenshots were
+inspected. Restart/read-only real-service checks showed no new API usage or reserve.
+Real recognition and global-comparison quality still required the user’s manual test;
+previous results were not automatically recomputed. New local logic required an
+explicit analysis, and old API plans required a fresh estimate for global comparison.
+
+## Incomplete local responses and scrolling — November 18, 2026
+
+Read-only diagnosis found 150 invalid responses out of 160, eight nonmatches and
+two matches; the old pipeline had incorrectly marked the proposal complete. One
+category contained a literal prompt placeholder instead of requested subjects.
+Without preserved raw outputs, exact causes of the invalid responses were unknown.
+
+Local prompt v6 introduced a compact schema, 1,024-token limit, category validation
+during repair and placeholder rejection. Cache version changed. At that historical
+stage, incomplete responses blocked a new proposal, preserved decisions and marked
+the old proposal stale; later uncertainty retention superseded that rule. Synthetic
+tests did not prove model quality or justify fabricated matches.
+
+All filtered cards became scrollable without Load more, with lazy preview loading.
+140 backend tests (Apple Vision helper unavailable in sandbox), 34 frontend tests
+and build passed. No new real inference or OpenAI request was made for this fix.
+
+## Authorized local replacement: Qwen3.5-9B
+
+The owner requested replacement despite the negative synthetic coverage result
+recorded in `models.md`. MLX-VLM 0.4.3 and miniaudio 1.73 were installed and pip check
+passed. Final-runtime offline loading was verified without inference. Atomic
+configuration activated Qwen3.5-9B-MLX-4bit; restart confirmed instruction capability.
+Only the provenance-checked prior 4B weights were removed: 3,109,734,493 bytes.
+SigLIP remained separate. No service, decision, original or rating changed and no
+OpenAI request occurred. 144 backend tests passed, one Apple Vision test excluded.
+
+## Blocking before photo assessment — November 19, 2026
+
+Read-only diagnosis: zero attempts/invalid responses, 160 unassessed photographs,
+160 saved candidates. The 9B had invented generic ambiguity/unsupported limits for
+a subject list; the pipeline had conflated blocked instructions with failed visuals.
+
+Revision v9 added a conservative parser only for lowercase single-word category
+lists without operators or extra criteria; other instructions still go through the
+model. It preserved original text, distinguished collection alternatives from
+same-photo co-occurrence, removed derived criteria from effective visual instructions
+and removed unsolicited subject examples. Real contradictions/unverifiable requests
+still block; inconsistent outputs are retried/rejected rather than fabricated yes.
+Cache version changed. Failure reasons and partial/prior interpretations became
+separate, saved candidates remained visible, and the old zero-invalid message was
+normalized read-only without rewriting the service.
+
+The actual model passed 11/11 synthetic-figure checks: 61.05 seconds, approximately
+7.71 GB peak MLX. See [v9 raw report](benchmarks/local-model-9b-v9.json); failed v7/v8
+attempts remain evidence. Reproduce with `scripts/check_local_model.py`. These
+checks do not validate aesthetics or general instruction reliability. No new user
+photo analysis, API request or star change occurred.
+
+## Uncertainty retention and partial-result recovery — November 19
+
+The last real attempt processed 160 images: 143 positive, 14 negative, one valid
+uncertain and two invalid schema/category responses. The owner required uncertain
+results to remain included rather than block the proposal.
+
+`retain-uncertain-v1` first forms ordinary confirmed-category coverage, then retains
+all uncertain/invalid/missing-preview/unassessed images unless manually excluded or
+marked alternative. Needs-review images can exceed the target, do not prove coverage
+and survive SigLIP reranking. Original assessments, valid cache and prompts/models
+were not changed. Per-photo failures stopped aborting the whole local service;
+blocking interpretation/global failures remained explicit. Acceptance preserves
+review states and previous decisions; before acceptance the proposal stays separate.
+
+A guarded recovery used 160 saved results to produce 15 ordinary plus three review
+proposals, checking revision, original text/criteria, IDs and preview-hash metadata.
+No inference, image read, API call, star write or embedding recomputation was needed.
+It reused saved preference/scene ranking. The local proposal advanced revision
+179 → 180 with 18 proposals, including three review items; decisions/stars stayed
+unchanged. 172 backend tests (one Apple Vision excluded), 36 frontend tests and build
+passed.
+
+## HTTPS and unusable API photo responses — November 19
+
+The macOS Python default SSL context had zero CA certificates. An unauthenticated
+handshake to api.openai.com failed certificate verification, while certifi verified
+TLS 1.3. Analysis/model discovery now explicitly use certifi with certificate and
+hostname checks enabled. Fixed error messages expose neither provider bodies nor
+secrets. No analysis was sent for the test. The exact old generic failure could not
+be recovered; historical reserves remained and no automatic retry was started.
+
+A real API attempt preserved 15 of 18 assessments before an unusable response.
+The old ledger did not distinguish refusal, incomplete output and schema violation.
+With verifiable usage, such photo outcomes now become uncertain and allow remaining
+already-authorized calls to continue without retry. Uncertain photos stay in the
+proposal unless manual exclusions prevail, without proving coverage. Network,
+unverifiable usage, interpretation and global-comparison errors still suspend.
+Receipts preserve safe diagnostic codes, not raw responses. The fix sent no new call.
+
+## Guided Lightroom → web → Lightroom workflow — November 19
+
+Five persistent phases, three routes, interrupted-sample resumption and current-only
+outcome summaries were implemented. Web/Lua share an offline guide. Apply stars
+is enabled only after the XMP attestation.
+
+193 backend tests (Apple Vision helper unavailable), 48 frontend tests, TypeScript,
+production build and guide/command consistency passed. Cases included local/hybrid/
+direct routes, resumption/incompatibility, budget shortage, uncertain results,
+changed criteria, restored phase, obsolete plan, zero changes, partial outcome and
+keyboard focus. Both synthetic headless smokes passed comparison, decisions,
+undo/redo, exact plan, simulated receipt, append/archive, presets, API consent,
+cache reuse and 390 px overflow checks. Desktop style was visually inspected.
+
+After an idle-state check, the upstream backend restarted. A read-only service check
+showed Outcome, 10 candidates and a prior receipt for four applied stars; no new
+analysis/application was performed. The user’s earlier successful manual round
+trip does not validate new native guide/button dialogs, which still need manual
+verification after reloading the plugin.
+
+## API start, manual review and empty proposals — November 19
+
+Successful API confirmation closes the summary and shows Analyze progress. A rejected
+request keeps the dialog open with a reason. All-photo view shows selection membership
+and Include/Exclude. Counts, filters and acceptance use automatic proposals with
+manual overrides. An empty proposal shows all photos for explicit manual selection.
+
+General quality/variety instructions are valid without mandatory subject categories.
+Interpretation/global cache version changed, preserving photo-assessment keys.
+True ambiguity becomes blocked rather than a completed empty analysis. Legacy
+completed-zero-photo cases are recognized read-only. Explicit manual acceptance
+allows Lightroom handoff without deleting blocked diagnostics.
+
+200 backend tests (Apple Vision excluded), 53 frontend tests and build passed.
+Read-only diagnosis of the reported case showed Configure, an explicit block,
+a recoverable prior sample of nine and zero completed photo assessments. No new
+real call or image mutation occurred; the revised real-case interpretation remained
+for a user-confirmed test with simulated responses used in automation.
+
+Both updated smokes passed automatic close/reopen, zero real sends, quantity changes
+without calls, empty proposal with all six fixtures visible, manual include/exclude
+with coverage confirmation and exact one-photo acceptance. No overflow at 390 px;
+selected/unselected distinction was inspected visually.
+
+## Navigable previews and extended API model catalog — November 19
+
+Clicking a preview opens a larger viewer in the existing style. Arrow keys,
+Previous/Next and Escape operate on the current filtered order, restoring focus to
+the initial photo. Viewing/navigation makes no decisions; missing previews have a
+clear message.
+
+The API catalog distinguishes reviewed models, candidate families and incompatible
+models. Unpriced candidates require separate payload consent, preserve saved budget
+and record unknown monetary receipts as null/partial totals. Reasoning parameters
+adapt by family; model selection never changes automatically and list refresh does
+no inference.
+
+205 backend tests (one Apple Vision helper excluded), 61 frontend tests and build
+passed. Synthetic headless smoke covered navigation, Escape/focus, simulated star
+flow and mobile layout. Only `/v1/models` was actually refreshed: the account exposed
+GPT-6.2 Sol/Astra. New-model analysis responses were simulated; visual quality and
+unreviewed-family compatibility require an explicitly confirmed real test.
+
+After both services were idle, restart/read-only checks showed 44 available reviewed
+or candidate identifiers including snapshots, Sol/Astra availability and the chosen
+model still GPT-5.4 mini. Existing results/selections were unchanged.
+
+## Distinct situations before variants — November 19
+
+Shared selection preserves a representative for every distinct group before second
+and third variants; targets remain soft. Synthetic cases verified 10 groups → 20
+balanced images and 23 groups → 23 images for target 20, manual occupancy/exclusions,
+categories and uncertainty. Local signatures/optional embeddings do not automatically
+merge uniform backgrounds or tiny subjects. Complete-link grouping prevents chains.
+API partitions must cover every matching index exactly once; individual caches
+remain valid while only global comparison version changes.
+
+222 backend tests (Apple Vision excluded), 62 frontend tests and build passed.
+Both headless smokes passed with no real cloud calls or catalog access. Real-photo
+group quality still needs manual verification; prior proposals do not recompute.
+The public installation/use README and `scripts/install.command` were added.
+Shell syntax, local links and installer sequence were checked with simulated commands;
+a clean installation on another Mac was not performed. Pre-publication checks found
+no real credentials, photos, catalogs or runtime databases in tracked files or the
+examined history. These are historical upstream results, not a new English-edition
+native or clean-install certification.

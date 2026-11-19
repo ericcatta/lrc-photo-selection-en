@@ -1,4 +1,4 @@
 local Context = import 'LrFunctionContext'
-Context.postAsyncTaskWithContext('Guida selezione fotografie', function()
+Context.postAsyncTaskWithContext('Photo selection guide', function()
     require('Guide').show()
 end)

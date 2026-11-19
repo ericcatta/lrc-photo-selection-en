@@ -1,56 +1,56 @@
 {
   "schema_version": 1,
-  "title": "Da Lightroom alla selezione e ritorno",
-  "intro": "Segui i passaggi nell’ordine. Puoi consultare questa guida anche senza connessione al backend locale.",
+  "title": "From Lightroom to selection and back",
+  "intro": "Follow the steps in order. This guide is available even when the local backend is offline.",
   "steps": [
     {
       "id": "sample",
-      "title": "Seleziona catalogo e fotografie",
-      "body": "Apri il catalogo desiderato in Lightroom Classic e seleziona tutte le foto del servizio. Controlla cartella, filtri e numero di foto selezionate: soltanto queste saranno preparate."
+      "title": "Select the catalog and photographs",
+      "body": "Open the desired catalog in Lightroom Classic and select all photographs for the service. Check the folder, filters and number of selected photos: only these photos will be prepared."
     },
     {
       "id": "connect",
-      "title": "Collega il plugin al primo utilizzo",
-      "body": "Avvia il backend locale. In Lightroom apri Libreria → Extra plug-in → Configura connessione locale e collega l’app. La guida resta disponibile anche se il backend è spento."
+      "title": "Connect the plugin on first use",
+      "body": "Start the English local backend on port 8766. In Lightroom, open Library → Plug-in Extras → Configure local connection and connect the app. The English edition uses separate local storage and does not read the Italian edition’s services or connection token."
     },
     {
       "id": "prepare",
-      "title": "Prepara il servizio",
-      "body": "Apri Libreria → Extra plug-in → Prepara servizio, scegli Nuovo servizio e assegna un nome. Attendi la preparazione delle anteprime: al termine si apre la web app. Non vengono applicate stelle."
+      "title": "Prepare the service",
+      "body": "Open Library → Plug-in Extras → Prepare service, choose New service and enter a name. Wait while previews are prepared; the web app opens when preparation finishes. No stars are applied."
     },
     {
       "id": "analyze",
-      "title": "Configura e analizza nella web app",
-      "body": "Scrivi le istruzioni nel campo unico o parti da un preset, poi modifica liberamente i criteri. Scegli Solo locale, Locale + OpenAI o Direttamente OpenAI e la quantità pertinente. OpenAI riceve il tuo testo originale; controlla campione, modello e stima, poi conferma esplicitamente l’invio. Passare da una fase all’altra non invia fotografie."
+      "title": "Configure and analyze in the web app",
+      "body": "Write your instructions in the single text field or start from a preset, then edit the criteria freely. Choose Local only, Local + OpenAI or Directly OpenAI and set the relevant quantity. OpenAI receives your original text. Review the sample, model and estimate, then explicitly confirm transmission. Moving between steps does not send photographs."
     },
     {
       "id": "review",
-      "title": "Rivedi e conferma la selezione",
-      "body": "Confronta le foto nella proposta, mantieni o escludi le immagini e controlla quelle Da rivedere. Gli incerti restano inclusi per prudenza e possono portare il totale oltre la quantità richiesta. Premi Conferma selezione quando sei soddisfatto. Tutte le foto restano disponibili nel provino."
+      "title": "Review and confirm the selection",
+      "body": "Compare photographs in the proposal, include or exclude images, and check those marked Needs review. Uncertain results stay included as a precaution and can increase the total above the requested quantity. Click Confirm selection when satisfied. Every imported photograph remains available in the contact sheet."
     },
     {
       "id": "plan",
-      "title": "Conferma l’elenco stelle nella web app",
-      "body": "Nel passaggio Lightroom prepara l’anteprima delle modifiche e conferma l’elenco. Il numero di candidate può essere diverso dalle nuove stelle: per esempio, 10 candidate con 6 valutazioni già presenti richiedono soltanto 4 nuove stelle. Le valutazioni esistenti e le decisioni manuali vengono preservate."
+      "title": "Confirm the star list in the web app",
+      "body": "In the Lightroom step, prepare the preview of changes and confirm the list. The candidate count can differ from the number of new stars: for example, 10 candidates with 6 existing ratings require only 4 new stars. Existing ratings and manual decisions are preserved."
     },
     {
       "id": "apply",
-      "title": "Applica e verifica in Lightroom",
-      "body": "In Lightroom apri Impostazioni catalogo → Metadati e verifica che Scrivi automaticamente le modifiche in file sidecar (XMP/ACR) sia senza spunta. Poi apri Libreria → Extra plug-in → Applica stelle, controlla catalogo, servizio ed elenco e spunta l’attestazione della verifica XMP nel dialogo del plugin. Premi Applica stelle. Consulta l’esito nella web app; per vedere le candidate usa Libreria → Extra plug-in → Mostra le candidate in Lightroom."
+      "title": "Apply and verify in Lightroom",
+      "body": "In Lightroom, open Catalog Settings → Metadata and check that Automatically write changes into XMP is unchecked. Then open Library → Plug-in Extras → Apply stars, check the catalog, service and list, and select the XMP confirmation checkbox in the plugin dialog. Click Apply stars. Check Outcome in the web app; to view candidates, use Library → Plug-in Extras → Show candidates in Lightroom."
     }
   ],
   "notes": [
     {
-      "title": "Riprendere un’analisi OpenAI",
-      "body": "Se l’analisi si interrompe, usa Prepara la ripresa e ricalcola la stima. A parità di criteri, modello e anteprime, le valutazioni valide in cache vengono riutilizzate senza nuove chiamate per quelle foto. Controlla sempre valutazioni nuove, risultati riutilizzati e costo prima di confermare. Una chiamata non utilizzabile può essere già stata addebitata."
+      "title": "Resume an OpenAI analysis",
+      "body": "If analysis stops, use Prepare to resume and calculate a new estimate. With the same criteria, model and previews, valid cached assessments are reused without new calls for those photographs. Always check new assessments, reused results and cost before confirming. An unusable call may already have been billed."
     },
     {
-      "title": "Due caselle XMP con significati diversi",
-      "body": "La casella di Lightroom controlla la scrittura automatica e deve restare disattivata. La casella nel nostro plugin attesta soltanto che hai controllato quell’impostazione: va spuntata prima di applicare le stelle. Il plugin non modifica le preferenze di Lightroom."
+      "title": "Two XMP checkboxes with different purposes",
+      "body": "The Lightroom checkbox controls automatic writing and must remain unchecked. The checkbox in this plugin only records that you checked the setting; select it before applying stars. The plugin does not change Lightroom preferences."
     },
     {
-      "title": "Che cosa viene modificato",
-      "body": "Il plugin assegna una stella soltanto alle candidate idonee che hanno zero stelle, dopo le conferme nella web app e in Lightroom. Non abbassa valutazioni già presenti, non elimina fotografie e non modifica originali, sidecar o sviluppo."
+      "title": "What changes",
+      "body": "The plugin assigns one star only to eligible candidates with zero stars, after confirmation in both the web app and Lightroom. It does not lower existing ratings, delete photographs, or modify originals, sidecars or develop settings."
     }
   ]
 }

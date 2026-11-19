@@ -49,7 +49,7 @@ def reply(payload=None, *, match='yes', tokens=True):
             result['output'][0]['content'][0]['text'] = json.dumps(body)
         elif name == 'collection_ranking':
             context = payload['input'][0]['content'][0]['text']
-            records = json.loads(context.split('Valutazioni di TUTTE le anteprime, indici dei provini: ')[1])
+            records = json.loads(context.split('Assessments of ALL previews, contact-sheet indices: ')[1])
             matched = [r['index'] for r in records if r['assessment']['match'] == 'yes']
             body = {'ranking': matched, 'groups': [{'members': matched, 'reason': 'Situazione sintetica ripetuta'}] if matched else [], 'warnings': []}
             result['output'][0]['content'][0]['text'] = json.dumps(body)
@@ -283,8 +283,8 @@ def test_uncertain_results_do_not_claim_absence(client):
     proposal = client.get('/api/services/test-service').json()['proposal']
     assert proposal['shortlist'] == ['u0:1', 'u1:1']
     assert proposal['review_ids'] == ['u0:1', 'u1:1']
-    assert any('non verificabili' in warning for warning in proposal['warnings'])
-    assert not any('Nessuna corrispondenza rilevata' in warning for warning in proposal['warnings'])
+    assert any('unverifiable' in warning for warning in proposal['warnings'])
+    assert not any('No match detected' in warning for warning in proposal['warnings'])
 
 
 def test_constructor_does_not_pause_live_plan_until_explicit_locked_recovery(client):
@@ -460,7 +460,7 @@ def test_legacy_plans_fail_closed_before_network(client):
             legacy.pop(name, None)
         runner.save(db, legacy)
     response = confirm(client, plan)
-    assert response.status_code == 409 and 'nuova stima' in response.json()['detail']
+    assert response.status_code == 409 and 'new estimate' in response.json()['detail']
     with runner.db() as db:
         legacy['status'] = 'completed'
         runner.save(db, legacy)
@@ -480,18 +480,18 @@ def test_actual_payload_guard_blocks_before_transmission(client):
     confirm(client, plan).raise_for_status()
     status = wait(client)
     assert status['job']['status'] == 'paused'
-    assert 'costo o il contesto' in status['job']['error']
+    assert 'cost or context' in status['job']['error']
     assert status['spent_usd'] == status['reserved_usd'] == 0
 
 @pytest.mark.parametrize('status,code,expected', [
-    (401, None, 'chiave API'),
-    (403, None, 'permessi'),
-    (404, None, 'Modello o endpoint'),
-    (400, None, 'formato o i parametri'),
-    (429, 'insufficient_quota', 'Quota o credito'),
-    (429, None, 'Limite di richieste'),
-    (429, {'unexpected': 'private'}, 'Limite di richieste'),
-    (503, None, 'temporaneamente non disponibile'),
+    (401, None, 'API key'),
+    (403, None, 'permissions'),
+    (404, None, 'model or endpoint'),
+    (400, None, 'format or parameters'),
+    (429, 'insufficient_quota', 'quota or credit'),
+    (429, None, 'request limit'),
+    (429, {'unexpected': 'private'}, 'request limit'),
+    (503, None, 'temporarily unavailable'),
 ])
 def test_provider_errors_are_actionable_and_never_expose_raw_bodies(client, status, code, expected):
     import io
@@ -517,7 +517,7 @@ def test_certificate_error_is_distinguished_from_budget_error():
     import ssl
     from urllib.error import URLError
     message = api_module._safe_failure(URLError(ssl.SSLCertVerificationError('private certificate data')))
-    assert 'certificato HTTPS' in message
+    assert 'HTTPS certificate' in message
     assert 'private certificate data' not in message
 
 
@@ -600,8 +600,8 @@ def test_general_quality_diversity_request_needs_no_subject_category(client):
         calls.append(payload)
         if payload['text']['format']['name'] == 'requested_categories':
             developer = payload['input'][0]['content'][0]['text']
-            assert 'requested_categories deve essere []' in developer
-            assert 'MAI categorie di soggetti' in developer
+            assert 'requested_categories, ambiguities and unsupported must then all be []' in developer
+            assert 'NEVER subject categories' in developer
             assert payload['input'][1]['content'][0]['text'] == original
         return reply(payload)
     runner.transport = transport
@@ -655,7 +655,7 @@ def test_old_interpretation_estimate_requires_new_confirmation_before_network(cl
         runner.save(db, old)
     runner.transport = lambda *_: pytest.fail('Old estimate must not transmit')
     response = confirm(client, plan)
-    assert response.status_code == 409 and 'nuova stima' in response.json()['detail']
+    assert response.status_code == 409 and 'new estimate' in response.json()['detail']
 
 
 def test_unpriced_analysis_requires_specific_confirmation_and_preserves_budget(client):
@@ -669,7 +669,7 @@ def test_unpriced_analysis_requires_specific_confirmation_and_preserves_budget(c
     assert plan['budget_usd'] == .25 and plan['can_confirm']
     runner.transport = lambda *_: pytest.fail('No explicit unpriced authorization')
     response = confirm(client, plan)
-    assert response.status_code == 409 and 'costo non stimabile' in response.json()['detail']
+    assert response.status_code == 409 and 'unestimable cost' in response.json()['detail']
     calls = []
     runner.transport = lambda payload, key: calls.append(payload) or reply(payload)
     confirm(client, plan, allow_unpriced=True).raise_for_status()
@@ -741,9 +741,9 @@ def test_grouped_api_selection_uses_best_per_situation_then_balanced_rounds(clie
     assert service['proposal']['grouping_source'] == 'openai-collection'
     assert len(service['proposal']['selection_groups']) == 10
     reasons = service['proposal']['shortlist_reasons']
-    assert 'Rappresentante conservata' in reasons['u0:1']
-    assert 'turno 2' in reasons['u1:1']
-    assert 'Alternativa della stessa situazione' in reasons['u2:1']
+    assert 'Representative retained' in reasons['u0:1']
+    assert 'round 2' in reasons['u1:1']
+    assert 'Alternative from the same situation' in reasons['u2:1']
 
 
 def test_every_distinct_situation_survives_even_above_requested_api_quantity(client):
@@ -751,7 +751,7 @@ def test_every_distinct_situation_survives_even_above_requested_api_quantity(cli
     plan = grouped_plan(service, [[index] for index in range(23)])
     runner.apply_result(service, plan, 20)
     assert len(service['proposal']['shortlist']) == 23
-    assert any('più immagini' in message for message in service['proposal']['warnings'])
+    assert any('more images' in message for message in service['proposal']['warnings'])
 
 
 def test_api_group_rounds_preserve_manual_choices_exclusions_and_uncertainty(client):
@@ -807,7 +807,7 @@ def test_new_grouping_collection_version_preserves_individual_cache(client):
     proposal = reselected.json()['proposal']
     assert proposal['grouping_source'] == 'identical-previews-only'
     assert set(proposal['shortlist']) == {'u0:1', 'u1:1'}  # broad shared scene never merges them
-    assert any('precedente non contiene gruppi' in warning for warning in proposal['warnings'])
+    assert any('previous comparison contains no validated situation groups' in warning for warning in proposal['warnings'])
     new_plan = estimate(client, reselected.json()).json()
     assert new_plan['cached_count'] == 2 and new_plan['uncached_count'] == 0
     assert new_plan['interpretation_request_count'] == 0 and new_plan['collection_request_count'] == 1

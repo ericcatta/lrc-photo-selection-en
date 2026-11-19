@@ -1,86 +1,148 @@
-# Analisi OpenAI: consenso e budget
+# OpenAI analysis: consent and budget
 
-Il backend locale usa Responses API. Codex resta lo strumento di sviluppo: non viene usata l'autenticazione Codex per chiamare l'API fotografica.
+The local backend uses the Responses API. Codex is the development tool; its
+credentials are not used for photographic API analysis. The English edition uses
+separate local storage and the `lrc-photo-selection-en-openai` keychain service.
 
-## Flusso
+## Workflow
 
-1. Salvare la chiave nella configurazione OpenAI della web app. Il backend la conserva nel portachiavi macOS; non viene restituita al frontend, inserita nei log o scritta nel repository.
-2. Scegliere la modalità ibrida: il passaggio locale è facoltativo. Selezionare le anteprime da valutare, partendo dalla proposta locale oppure da tutte le anteprime importate. Il confronto riguarda soltanto il campione confermato, non le foto escluse dall’invio.
-3. Impostare il numero finale OpenAI, indipendente dalla quantità locale. Richiedere la stima senza dover impostare un budget: questa operazione non chiama OpenAI e non invia immagini. Un budget complessivo rimane facoltativo. Quando la tariffa è nota, la conferma autorizza il limite prudenziale del singolo piano mostrato. Con tariffa sconosciuta occorre invece confermare esplicitamente l’invio senza stima e senza un limite monetario verificabile.
-4. Rivedere elenco e anteprime, modello, testo originale, numero finale, stima, limite prudenziale e consumo precedente.
-5. Confermare esplicitamente l'invio. Soltanto questa azione abilita le richieste del piano mostrato. Una modifica a dati, criteri, modello o revisione richiede una nuova stima e una nuova conferma.
+1. Save an API key in the web app’s OpenAI settings. The backend stores it in the
+   macOS keychain, never returning it to the frontend or writing it to logs or Git.
+2. Choose Local + OpenAI or Directly OpenAI. Local analysis is optional. Select
+   previews from the local proposal or all imported previews. The comparison covers
+   only the confirmed sample, not photos excluded from transmission.
+3. Set the final OpenAI quantity separately from the local target. Request an estimate
+   without a mandatory overall budget. Estimation makes no OpenAI call and sends no
+   images. With known pricing, confirmation authorizes the displayed conservative
+   per-plan guard; an overall budget remains optional. Unknown pricing instead
+   requires explicit consent to transmit without a verified monetary estimate/guard.
+4. Review the exact sample, previews, model, original text, final quantity, estimate,
+   conservative limit and previous usage.
+5. Explicitly confirm transmission. Only this action enables the displayed plan’s
+   requests. Changes to data, criteria, model or revision require a new estimate and
+   confirmation.
 
-Il testo delle istruzioni è un elemento `input_text` utente separato, identico al testo salvato (Unicode, righe e spazi inclusi). L’interfaccia offre un unico testo modificabile. I criteri dei vecchi servizi/preset sono riportati visibilmente in questo campo, mantenendo il testo originale come prefisso; soltanto un salvataggio esplicito consolida i campi. Gli schemi tecnici e le categorie derivate non sostituiscono il testo salvato. Si inviano soltanto le anteprime selezionate: mai RAW, catalogo, percorsi degli originali o credenziali nel prompt. Le anteprime possono comunque contenere dati personali visibili, per questo l'elenco richiede conferma. `store:false` disabilita la conservazione della risposta per il successivo recupero tramite API; non è una promessa di assenza di tutti i log di servizio OpenAI.
+Saved instructions are sent as a separate user `input_text` element, unchanged down
+to Unicode, line breaks and spaces. The interface has one editable text field.
+Legacy criteria are visibly appended while preserving original text as a prefix;
+only explicit saving consolidates fields. Technical schemas and derived categories
+never replace the saved original. Transmission includes only confirmed previews,
+never RAW files, catalogs, original paths or credentials in prompts. Previews may
+still contain visible personal data, hence the exact sample confirmation.
+`store:false` disables later response retrieval through the API; it is not a claim
+that OpenAI maintains no service logs.
 
-## Stima
+## Estimates and historical pricing verification
 
-Modelli verificati il 18 novembre 2026: GPT-5.4 mini (`gpt-5.4-mini-2026-03-17`, input 0,75 USD/output 4,50 USD per milione di token) e GPT-5.4 (`gpt-5.4-2026-03-05`, input 2,50 USD/output 15 USD per milione). Nessuno sconto cache è presunto nella stima prudenziale. Aggiunti il 19 novembre 2026 GPT-6.2 Sol (input 2 USD/output 10 USD per milione) e GPT-6.2 Astra (8 USD/40 USD), oltre a GPT-5.3 Codex (1,75 USD/14 USD, deprecato ma ancora esposto dall’account). Le tariffe hanno una finestra di validità: una tariffa scaduta viene trattata come sconosciuta nei nuovi piani. Nessun prezzo sconosciuto viene presentato come zero.
+The following rates record upstream verification dates, not a fresh pricing claim:
 
-La riserva considera il limite di output, un limite prudenziale per input testuale/immagine e un margine aggiuntivo. Non è una misurazione della qualità né una promessa di costo esatto. Il consumo token restituito da OpenAI viene registrato; il costo è calcolato con le tariffe del piano e non sostituisce la fattura. Il limite è applicativo, non un limite configurato nell'account OpenAI.
+| Verified date | Model | Input / output USD per million tokens |
+|---|---|---:|
+| November 18, 2026 | GPT-5.4 mini (`gpt-5.4-mini-2026-03-17`) | 0.75 / 4.50 |
+| November 18, 2026 | GPT-5.4 (`gpt-5.4-2026-03-05`) | 2.50 / 15.00 |
+| November 19, 2026 | GPT-6.2 Sol | 2.00 / 10.00 |
+| November 19, 2026 | GPT-6.2 Astra | 8.00 / 40.00 |
+| November 19, 2026 | GPT-5.3 Codex, deprecated but account-visible | 1.75 / 14.00 |
 
-## Interruzioni e ripresa
+Conservative estimates assume no cache discount. Pricing has a validity window;
+expired rates become unknown for new plans. Unknown prices are never shown as zero.
+The reserve accounts for output limits, conservative text/image input bounds and
+an additional margin. It is neither a quality measure nor a guaranteed exact cost.
+Returned usage is recorded and cost calculated using plan rates; the provider bill
+remains authoritative. The guard is application-side, not an OpenAI account limit.
 
-Una richiesta alla volta, nessun tentativo automatico illimitato. Prima dell'invio viene riservato il costo prudenziale; il budget include consumi e riserve delle prove precedenti dello stesso servizio. Timeout o esito incerto mantengono la riserva: non vengono trattati come chiamate gratuite. Annullare interrompe le chiamate successive, ma non può ritirare una richiesta già partita.
+## Interruption and resumption
 
-I risultati validi vengono riutilizzati soltanto quando anteprima, testo/criteri, modello e versione del formato coincidono. Riprendere richiede una nuova stima e conferma; il riavvio del backend non riparte automaticamente con invii cloud. Si può continuare con il motore locale. Risultati incompleti o mancata corrispondenza non comportano riempimenti con foto non pertinenti.
+Requests are sequential, without unlimited automatic retries. Conservative cost is
+reserved before transmission; service budgets include prior usage and reserves.
+Timeouts and uncertain outcomes retain their reserve rather than being treated as
+free calls. Cancellation stops later requests but cannot recall an already sent one.
 
-I risultati API sono proposte di revisione, non modifiche a Lightroom. Decisioni manuali, stelle già esistenti e originali restano protetti dal flusso separato delle stelle.
+Valid results are reused only when preview, original instructions/criteria, model
+and format version match. Resumption requires a new estimate and confirmation.
+Restarting the backend never resumes cloud sends automatically. Local work can
+continue independently. Unrelated photos never fill missing/incomplete matches.
+Responses with verifiable usage but unusable photo output are retained as Needs review; errors
+in transport, usage validation, interpretation or global comparison still suspend
+when required for safe continuation.
 
-## Crediti
+API outputs are review proposals, not Lightroom mutations. Manual decisions,
+existing stars and originals remain protected by the separate star workflow.
 
-Non viene presunto un saldo o un accredito nominale. Il budget locale è distinto dai crediti e dalle condizioni dell'account. Non si acquistano crediti e non si attivano ricariche automatiche. Controllare credito e scadenza nel proprio account prima della prova: le condizioni attuali possono dipendere dall'abbonamento e dal ciclo di fatturazione.
+## Credits
 
-## Fonti ufficiali
+No balance or nominal account credit is assumed. Local budgets are distinct from
+provider credits and terms. The app purchases no credits and enables no automatic
+top-up. Check credit and expiry in the account before testing; applicable conditions
+can depend on subscription and billing cycle.
 
-- Modello/tariffe: https://developers.openai.com/api/docs/models/gpt-5.4-mini
-- Immagini e costo token: https://developers.openai.com/api/docs/guides/images-vision
-- Output strutturato: https://developers.openai.com/api/docs/guides/structured-outputs
-- Crediti ChatGPT/API: https://developers.openai.com/api/docs/guides/chatgpt-api-credits
+## Dynamic models
 
-## Aggiornamento dei modelli
+Verify available models reads `/v1/models` with the saved key, without photographs.
+The list is cached locally with its verification date and a refresh reminder after
+24 hours. Candidate image/Responses families remain selectable without known
+pricing. The UI distinguishes reviewed compatibility from family-inferred
+compatibility: an account listing alone proves neither image support nor pricing.
+Audio-only, embedding and image-generation models are excluded. Selection never
+changes automatically. Replacing the key invalidates cached availability.
 
-«Verifica modelli disponibili» legge `/v1/models` con la chiave salvata, senza inviare fotografie. La lista viene conservata localmente, mostra la data di verifica e segnala dopo 24 ore che occorre aggiornarla. Le famiglie candidate compatibili con immagini e Responses sono selezionabili anche senza tariffa nota. La UI distingue compatibilità verificata da compatibilità dedotta dalla famiglia: l’elenco dell’account, da solo, non prova le capacità. Modelli dedicati ad audio, embedding o generazione di immagini restano esclusi. Il modello scelto non viene sostituito automaticamente. Cambiare chiave invalida la disponibilità memorizzata.
+The reviewed registry remains separate from dynamic availability. Prices are not
+inferred from model names. Reasoning parameters adapt by family; GPT-6.2 uses
+`low`, not `none`. Refreshing models performs no inference or photo transmission.
 
-La disponibilità dell’account non certifica il supporto immagini o il prezzo: il registro verificato è distinto dall’elenco dinamico. Le tariffe non vengono dedotte dal nome del modello. I parametri di ragionamento vengono adattati alla famiglia; GPT-6.2 usa low e non none.
+## Final quantity and whole-sample selection
 
-Ulteriore fonte: https://developers.openai.com/api/docs/models/gpt-5.4
+After completed analysis, another final quantity can reuse stored evaluations
+without new requests. It cannot recover information about photographs never
+included in the confirmed sample.
 
-## Quantità finale e selezione complessiva
+Priorities are original instructions, requested-category coverage and series
+variety, then photographic merit among relevant alternatives. A quality score must
+not replace one requested category with another. Categories remain interpretations;
+missing/uncertain coverage is reported rather than filled with unrelated images.
+Expression, gesture, composition and meaning can outweigh sharpness. Visual merit
+is a subjective ordinal judgment, not calibrated beauty, and explicit preferences
+prevail.
 
-Il numero finale API è separato dall’obiettivo locale. Dopo un’analisi completata si può ricomporre la proposta con un altro numero riutilizzando le valutazioni conservate, senza inviare nuove richieste. Non può recuperare informazioni sulle immagini mai incluse nel campione confermato.
+The plan includes text interpretation, individual preview assessments and global
+comparison using indexed JPEG contact sheets of 16 images plus all sample
+assessments. Each request keeps the exact original user text separate. Estimates
+include interpretation and global comparison. No photographs outside the confirmed
+list are added. Small contact-sheet details remain uncertain; missing or invalid
+global comparison is never presented as completed.
 
-Priorità: istruzioni dell’utente, copertura delle categorie richieste e varietà della serie, poi qualità tra alternative pertinenti. La qualità non può sostituire una categoria richiesta con un’altra. Le categorie sono interpretazioni del modello, non fatti certificati: mancanze o incertezze vengono segnalate e non riempite con immagini non pertinenti.
+Local analysis also aggregates evidence across imported previews, categories and
+visual vectors. It does not display all photographs simultaneously to the local
+VLM. Older category-less caches are invalidated by engine version.
 
-Tra alternative pertinenti contano espressione, gesto, composizione e significato nella serie: nitidezza e perfezione tecnica non sono il criterio dominante. Il merito visivo stimato dal modello resta un giudizio ordinale soggettivo, non una misura calibrata della bellezza. Le preferenze esplicite dell’utente hanno precedenza.
+## Unknown pricing
 
-## Confronto dell’insieme
+The summary shows Cost unavailable and requires distinct consent for sending
+without monetary budget enforcement. The stored budget is preserved. Available
+token counts and unpriced requests are recorded; known monetary totals are labeled
+partial and overall remaining funds unverifiable. Provider billing is authoritative.
 
-Il piano API comprende: interpretazione testuale delle categorie, valutazione delle singole anteprime, confronto globale tramite provini JPEG indicizzati (16 immagini per foglio) e tutte le valutazioni del campione. Ogni richiesta mantiene il testo originale utente come elemento separato identico. Il riepilogo include anche le richieste di interpretazione e confronto globale nel costo. Non vengono aggiunte fotografie fuori dall’elenco confermato.
+## Situations before variants
 
-Il confronto globale restituisce un ordinamento completo delle corrispondenze confermate. La ricomposizione locale conserva decisioni manuali e almeno una rappresentante per ogni categoria riconosciuta e idonea. I dettagli piccoli nei provini restano incerti e il riconoscimento non equivale a una garanzia di copertura. Un confronto mancante/invalido non viene spacciato per completato.
+Global comparison returns a complete partition of matching indices into near-duplicate
+alternative groups with reasons. A broad category or location is insufficient to
+merge photographs. The backend keeps one representative per group, even above the
+target, then adds variants from less represented groups. Manual inclusions prevail
+and count toward group occupancy.
 
-Il motore locale valuta tutte le anteprime e combina le evidenze dell’intero servizio con categorie, scene indicative e diversità degli embedding. Non mostra contemporaneamente tutte le fotografie al VLM locale: il confronto globale locale è basato sulle evidenze aggregate e sui vettori visivi. Le vecchie cache senza categorie vengono invalidate dalla versione del motore.
+This default applies without the word variety. Ranking chooses variants; it does
+not authorize sacrificing a distinct situation for a stronger duplicate. A new
+global format invalidates only global cache, leaving compatible interpretation and
+individual assessments reusable. Existing proposals are not rewritten on load.
+New comparison always requires estimate and confirmation. Recomposition of old
+ungrouped results groups only byte-identical previews and reports that limitation.
 
-### Modelli senza tariffa
+## Official references
 
-Il riepilogo mostra «Costo non disponibile» e richiede una conferma esplicita che autorizza l’invio senza controllo del budget monetario. Il budget salvato viene preservato. Si registrano i token disponibili e le richieste senza prezzo; il consumo monetario noto è indicato come parziale, e il residuo complessivo non è verificabile. La fatturazione OpenAI resta la fonte del costo effettivo. Nessuna verifica del catalogo modelli invia immagini, effettua inferenza o cambia automaticamente il modello selezionato.
-
-Fonti GPT-6.2: https://developers.openai.com/api/docs/models/gpt-6.2-sol e https://developers.openai.com/api/docs/models/gpt-6.2-astra.
-
-## Situazioni prima delle varianti
-
-Il confronto globale restituisce anche gruppi di alternative quasi identiche:
-la partizione deve contenere ogni foto corrispondente esattamente una volta.
-Una categoria generica o lo stesso luogo non bastano per unire due foto. Il
-backend conserva prima una rappresentante per gruppo, anche oltre il target;
-poi aggiunge varianti distribuendole tra i gruppi meno rappresentati. Le scelte
-manuali prevalgono e vengono conteggiate nella distribuzione.
-
-Questo criterio si applica anche senza chiedere esplicitamente varietà. Il
-ranking stabilisce quale variante preferire, non autorizza a sacrificare una
-situazione diversa per un duplicato più bello. Un nuovo formato del confronto
-invalida soltanto la cache globale: valutazioni individuali e interpretazione
-compatibili restano riutilizzabili. Le proposte esistenti non vengono riscritte
-al caricamento. Un confronto nuovo richiede sempre stima e conferma; la
-ricomposizione di vecchi risultati senza gruppi usa solo l’evidenza delle
-anteprime identiche e segnala il limite.
+- [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+- [GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4)
+- [Images and vision](https://developers.openai.com/api/docs/guides/images-vision)
+- [Structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [ChatGPT/API credits](https://developers.openai.com/api/docs/guides/chatgpt-api-credits)
+- [GPT-6.2 Sol](https://developers.openai.com/api/docs/models/gpt-6.2-sol)
+- [GPT-6.2 Astra](https://developers.openai.com/api/docs/models/gpt-6.2-astra)

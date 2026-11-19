@@ -2,24 +2,24 @@ local Common = require 'Common'
 local Selection = require 'Selection'
 local Dialogs = import 'LrDialogs'
 
-Common.run('Mostra le candidate', function(context)
+Common.run('Show candidates', function(context)
     local catalog, path, label = Common.catalog()
     local registration = Common.registration(path, false)
     local sid = Selection.chooseService(context, registration, label, {
-        title = 'Mostra le candidate', action = 'Seleziona in Lightroom', statuses = {ready = true},
+        title = 'Show candidates', action = 'Select in Lightroom', statuses = {ready = true},
     })
     if not sid then return end
     local service = Common.request('GET', '/api/services/' .. sid)
     assert(service.id == sid and service.catalog_id == registration and service.status == 'ready' and not service.archived,
-        'Il servizio non è disponibile in questo catalogo.')
+        'The service is unavailable in this catalog.')
     local byID, items = {}, {}
     for _, item in ipairs(service.photos) do byID[item.id] = item end
     for _, id in ipairs(service.selected_ids) do
-        local item = assert(byID[id], 'Identificativo della candidata non valido.')
+        local item = assert(byID[id], 'Invalid candidate identifier.')
         items[#items + 1] = {photo_id = id, uuid = item.uuid, local_id = item.local_id}
     end
     if #items == 0 then
-        Dialogs.message('Nessuna candidata', 'Il servizio non contiene candidate da selezionare.', 'info')
+        Dialogs.message('No candidates', 'The service has no candidates to select.', 'info')
         return
     end
     local photos = Selection.identify(catalog, items)
@@ -31,7 +31,7 @@ Common.run('Mostra le candidate', function(context)
             if active then others[#others + 1] = photo else active = photo end
         end
     end
-    assert(active, 'Nessuna candidata è stata trovata nel catalogo attivo.')
+    assert(active, 'No candidates were found in the active catalog.')
     Common.assertCatalog(path)
     catalog:setSelectedPhotos(active, others)
     local matched = 0
@@ -41,6 +41,6 @@ Common.run('Mostra le candidate', function(context)
         end
     end
     if matched ~= #items then
-        Dialogs.message('Selezione parziale', matched .. ' di ' .. #items .. ' candidate selezionate. Controlla le sorgenti e i filtri attivi e riprova.', 'warning')
+        Dialogs.message('Partial selection', matched .. ' of ' .. #items .. ' candidates selected. Check the active sources and filters, then try again.', 'warning')
     end
 end)

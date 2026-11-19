@@ -1,24 +1,32 @@
-# Guida locale Lightroom
+# Offline Lightroom guide
 
-La fonte dei contenuti è `docs/workflow-guide.json`. Dopo una modifica eseguire
-`python3 scripts/generate_workflow_guide.py`; `--check` verifica che le copie Lua
-e web siano aggiornate. Non modificare manualmente `GuideData.lua` o
-`web/src/guide-data.json`.
+The canonical content is `docs/workflow-guide.json`. After editing it, run
+`python3 scripts/generate_workflow_guide.py`; `--check` verifies that the Lua and
+web copies are current. Do not edit `GuideData.lua` or `web/src/guide-data.json`
+manually.
 
-La voce «Guida — da Lightroom alla selezione e ritorno» e i pulsanti Guida nei
-dialoghi Prepara servizio e Applica stelle usano soltanto il SDK per le viste.
-La guida non richiede backend, connessione, token o catalogo aperto.
+The menu item **Guide — from Lightroom to selection and back** and the Guide
+buttons in Prepare service and Apply stars use only the official SDK for views.
+The guide requires no backend, connection, token or active catalog.
 
-L’applicazione stelle ha un binding `actionBinding.enabled` alla casella di
-attestazione XMP, oltre a un controllo difensivo che restituisce un messaggio
-comprensibile senza riservare il piano sul backend né applicare stelle. Le modifiche restano bloccate
-finché l’utente non attesta la verifica. Il plugin non cambia preferenze XMP.
+Star application binds `actionBinding.enabled` to the XMP confirmation checkbox.
+A defensive check also returns a clear message without claiming the plan or
+applying stars. Changes remain blocked until the user confirms the XMP check.
+The plugin never changes Lightroom preferences.
 
-Verifica automatica: simulazione Lua 5.1 per guida offline, coerenza delle copie,
-nomi dei comandi effettivi, blocco XMP, esiti completi e parziali. Il rendering e il
-binding nativo devono essere collaudati manualmente in Lightroom dopo Reload
-Plug-in; le simulazioni non sostituiscono tale controllo.
+The English edition is isolated from the Italian edition:
 
-Riferimento SDK: `LrDialogs.presentModalDialog`, `actionBinding` e
-`viewFactory:push_button` nella documentazione Adobe Lightroom SDK
-([copia della reference](https://lrc.mcor.dev/modules/LrDialogs.html)).
+- Toolkit identifier: `com.ericcatta.lrc-photo-selection-en`.
+- Plugin storage: `lrc-photo-selection-plugin-en` under SDK application storage.
+- Local backend: `http://127.0.0.1:8766`.
+- Backend data: `~/Library/Application Support/LrC Photo Selection EN`.
+- Local connection key: `loopback-token-en`, in the English plugin namespace.
+
+Automated checks use Lua 5.1 simulations for the offline guide, generated content,
+actual menu command names, XMP gating, and complete/partial outcomes. Native
+rendering and button binding must be tested manually after **Reload Plug-in** in
+Lightroom; simulations do not replace that check.
+
+SDK reference: `LrDialogs.presentModalDialog`, `actionBinding` and
+`viewFactory:push_button` in the Adobe Lightroom SDK
+([reference mirror](https://lrc.mcor.dev/modules/LrDialogs.html)).

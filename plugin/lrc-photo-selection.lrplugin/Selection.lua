@@ -11,7 +11,7 @@ function M.chooseService(context, registration, label, config)
             options[#options + 1] = {title = item.title, value = item.id}
         end
     end
-    assert(#options > 0, 'Nessun servizio pronto associato a questo catalogo.')
+    assert(#options > 0, 'No ready service is linked to this catalog.')
     local properties = Binding.makePropertyTable(context)
     properties.selected = options[1].value
     local view = View.osFactory()
@@ -19,9 +19,9 @@ function M.chooseService(context, registration, label, config)
         title = config.title,
         contents = view:column {
             bind_to_object = properties,
-            view:static_text { title = 'Catalogo: ' .. label },
+            view:static_text { title = 'Catalog: ' .. label },
             view:popup_menu { value = View.bind 'selected', items = options },
-        }, actionVerb = config.action, cancelVerb = 'Annulla',
+        }, actionVerb = config.action, cancelVerb = 'Cancel',
     }
     return answer == 'ok' and Common.key(properties.selected) or nil
 end

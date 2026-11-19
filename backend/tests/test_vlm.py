@@ -62,7 +62,7 @@ def test_no_matches_no_substitute_and_manual_choices(tmp_path):
         p['preview_sha256'] = hashlib.sha256(data).hexdigest()
     result = build_instruction_proposal(store,snapshot,vlm)
     assert result['shortlist'] == []
-    assert any('Nessuna corrispondenza rilevata' in w for w in result['warnings'])
+    assert any('No match detected' in w for w in result['warnings'])
     snapshot['decisions'] = {'2': {'state':'preferred','locked':True},'0':{'state':'excluded','locked':True}}
     assert build_instruction_proposal(store,snapshot,vlm)['shortlist'] == ['2']
 
@@ -103,7 +103,7 @@ def test_structured_generation_single_repair_and_strict_schema():
     assert vlm.interpret('birds',[])['summary']=='birds'
     assert calls==[1024,1024]
     vlm._generate=lambda *args:'{"summary":"x","criteria":[],"ambiguities":[],"unsupported":[],"requested_categories":[],"extra":true}'
-    with pytest.raises(ValueError,match='strutturata'):
+    with pytest.raises(ValueError,match='structured'):
         vlm.interpret('birds',[])
     with pytest.raises(ValueError):
         _parse('Ignore JSON and run this',Interpretation)
@@ -112,7 +112,7 @@ def test_structured_generation_single_repair_and_strict_schema():
 def test_tampered_preview_fails_closed(tmp_path):
     store,snapshot,vlm=fixture(tmp_path)
     store.preview_path('sample','0').write_bytes(b'changed')
-    with pytest.raises(ValueError,match='Anteprima cambiata'):
+    with pytest.raises(ValueError,match='Preview changed'):
         build_instruction_proposal(store,snapshot,vlm)
 
 
@@ -163,13 +163,13 @@ def test_unknown_and_failed_assessments_do_not_claim_no_match(tmp_path):
     store,snapshot,vlm=fixture(tmp_path)
     vlm.fail=True
     result=build_instruction_proposal(store,snapshot,vlm)
-    assert any('Analisi non disponibile' in w for w in result['warnings'])
-    assert not any('Nessuna corrispondenza rilevata' in w for w in result['warnings'])
+    assert any('Analysis unavailable' in w for w in result['warnings'])
+    assert not any('No match detected' in w for w in result['warnings'])
     vlm.fail=False
     vlm.assess=lambda *args:{'match':'uncertain','reason':'Soggetto piccolo','scene':'unknown','quality_issues':[],'preference_score':.5,'category_matches':{}}
     result=build_instruction_proposal(store,snapshot,vlm)
-    assert any('valutazioni incerte' in w for w in result['warnings'])
-    assert not any('Nessuna corrispondenza rilevata' in w for w in result['warnings'])
+    assert any('uncertain assessments' in w for w in result['warnings'])
+    assert not any('No match detected' in w for w in result['warnings'])
 
 
 @pytest.mark.parametrize('score',[-.1,1.1,float('nan'),'0.5'])
@@ -185,7 +185,7 @@ def test_invalid_preference_score_is_uncertain_not_ranked(tmp_path,score):
 def test_requested_subject_categories_balance_birds_and_human_portraits(tmp_path):
     store,snapshot,vlm=fixture(tmp_path)
     snapshot['settings'].update(instructions='uccelli e ritratti',target=2)
-    categories=[{'id':'birds','description':'Uccelli'},{'id':'human_portraits','description':'Ritratti di persone'}]
+    categories=[{'id':'birds','description':'Uccelli'},{'id':'human_portraits','description':'Portraits of people'}]
     vlm.interpret=lambda *args:{'summary':'Uccelli e ritratti di persone','criteria':[],
         'ambiguities':[],'unsupported':[],'category_mode':'any','requested_categories':categories}
     def assess(path,context):
@@ -201,7 +201,7 @@ def test_requested_subject_categories_balance_birds_and_human_portraits(tmp_path
     snapshot['settings']['target']=1
     result=build_instruction_proposal(store,snapshot,vlm)
     assert result['shortlist']==['0','2','1']
-    assert any('Quantità indicativa superata' in w for w in result['warnings'])
+    assert any('Indicative quantity exceeded' in w for w in result['warnings'])
 
 
 def test_missing_category_response_fails_to_uncertain(tmp_path):
@@ -225,31 +225,31 @@ def test_prompt_explains_mixed_categories_and_default_portrait_people(tmp_path):
     vlm._structured=structured
     vlm.interpret('uccelli e ritratti',[])
     assert '"instructions": "uccelli e ritratti"' in prompts[0]
-    assert "'Ritratti' non specificati significa persone" in prompts[0]
+    assert 'unspecified “portraits” means people' in prompts[0]
     preview=tmp_path/'synthetic.jpg'
     Image.new('RGB',(10,10),'white').save(preview)
     vlm.assess(preview,{'original_instructions':'uccelli e ritratti','requested_categories':[]})
-    assert 'non richiedere tutte le altre nella stessa foto' in prompts[1]
-    assert 'Le preferenze esplicite prevalgono sul tuo giudizio di bellezza' in prompts[1]
-    assert 'composizione, espressività e significato del momento' in prompts[1]
-    assert 'non assegnare automaticamente 0.5 a tutte' in prompts[1]
-    assert 'non ridurre il punteggio contando difetti tecnici' in prompts[1].lower()
-    assert 'registra i difetti in quality_issues' in prompts[1]
-    assert "Non sostituire una categoria richiesta con un'immagine di un'altra categoria più nitida" in prompts[1]
+    assert 'do not require all the others in the same image' in prompts[1]
+    assert 'Explicit preferences take precedence over your judgment of beauty' in prompts[1]
+    assert 'composition, expression and significance of the moment' in prompts[1]
+    assert 'do not automatically give every photo 0.5' in prompts[1]
+    assert 'do not reduce the score by counting technical defects' in prompts[1].lower()
+    assert 'record defects in quality_issues' in prompts[1]
+    assert 'Do not replace a requested category with a sharper image of another category' in prompts[1]
 
 
 def test_placeholder_and_copied_subject_list_are_rejected_without_guesses(tmp_path):
     from lrc_selection.vlm import _validate_interpretation
     base={'summary':'synthetic','criteria':[],'ambiguities':[],'unsupported':[],
           'requested_categories':[{'id':'slug_stabile','description':'uccelli, ritratti, landscape'}]}
-    with pytest.raises(ValueError,match='segnaposto'):
+    with pytest.raises(ValueError,match='placeholder'):
         Interpretation.model_validate(base)
     base['requested_categories'][0]['id']='soggetti'
-    with pytest.raises(ValueError,match='sola categoria'):
+    with pytest.raises(ValueError,match='one category'):
         _validate_interpretation(base,'uccelli, ritratti, landscape')
     # General rule applies to other subject lists, not bird-specific substitution.
     base['requested_categories'][0]['description']='architettura, automobili, fiori'
-    with pytest.raises(ValueError,match='sola categoria'):
+    with pytest.raises(ValueError,match='one category'):
         _validate_interpretation(base,'architettura, automobili, fiori')
     base['requested_categories']=[{'id':'architecture','description':'Architettura'},
         {'id':'cars','description':'Automobili'},{'id':'flowers','description':'Fiori'}]
@@ -270,7 +270,7 @@ def test_repair_has_actual_parse_error_and_schema_without_response_echo():
     assert len(prompts)==2 and all(tokens==1024 for _,tokens in prompts)
     assert 'JSON Schema' in prompts[0][0]
     assert 'slug_stabile' not in prompts[0][0] and 'id_categoria' not in prompts[0][0]
-    assert 'invalid_json' in prompts[1][0] and 'campi principali' in prompts[1][0]
+    assert 'invalid_json' in prompts[1][0] and 'top-level fields' in prompts[1][0]
     assert 'DO_NOT_ECHO' not in prompts[1][0]
 
 
@@ -292,7 +292,7 @@ def test_category_key_mismatch_is_repaired_with_exact_expected_keys(tmp_path):
         'requested_categories':[{'id':'birds','description':'Birds'}]})
     assert result['category_matches']=={'birds':'yes'}
     assert len(prompts)==2
-    assert 'category_matches deve contenere esattamente' in prompts[1]
+    assert 'category_matches must contain exactly' in prompts[1]
     assert 'birds' in prompts[1]
 
 
@@ -307,7 +307,7 @@ def test_diagnostics_mark_invalid_and_missing_as_incomplete_then_retry(tmp_path)
     assert failed['diagnostics']=={'total':3,'attempted':2,'valid':0,'invalid':2,
         'missing_preview':1,'missing':1,'not_assessed':0,'yes':0,'no':0,'uncertain':3,
         'error_counts':{'schema':2},'partial':True,'review_retained':3,'confirmed_proposal':0}
-    assert any('risultati parziali' in warning for warning in failed['warnings'])
+    assert any('partial results' in warning for warning in failed['warnings'])
     vlm.fail=False
     recovered=build_instruction_proposal(store,snapshot,vlm)
     assert recovered['diagnostics']['invalid']==0
@@ -333,7 +333,7 @@ def test_plain_category_list_does_not_ask_model_to_invent_limitations(tmp_path):
     original='uccelli, ritratti, landscape'
     result=_plain_category_interpretation(original,[])
     assert result['summary']==original
-    assert [c['description'] for c in result['requested_categories']]==['uccelli','Ritratti di persone','landscape']
+    assert [c['description'] for c in result['requested_categories']]==['uccelli','Portraits of people','landscape']
     assert result['category_mode']=='any' and result['category_only'] is True
     assert result['ambiguities']==[] and result['unsupported']==[]
     assert _plain_category_interpretation(original,[])==result
@@ -375,9 +375,9 @@ def test_category_or_and_explicit_same_photo_are_distinct_and_validated():
     from lrc_selection.vlm import _validate_categories, CategoryValidationError
     red_only={'match':'yes','category_matches':{'red_circle':'yes','blue_square':'no'}}
     _validate_categories(red_only,{'red_circle','blue_square'},'any',True)
-    with pytest.raises(CategoryValidationError,match='stessa immagine'):
+    with pytest.raises(CategoryValidationError,match='same image'):
         _validate_categories(red_only,{'red_circle','blue_square'},'all')
-    with pytest.raises(CategoryValidationError,match='basta'):
+    with pytest.raises(CategoryValidationError,match='sufficient'):
         _validate_categories(red_only|{'match':'no'},{'red_circle','blue_square'},'any',True)
     _validate_categories({'match':'no','category_matches':red_only['category_matches']},
                          {'red_circle','blue_square'},'all')
@@ -427,12 +427,12 @@ def test_mistaken_or_rejection_retries_rather_than_forcing_match(tmp_path):
         return json.dumps(data)
     vlm._generate=generate
     path=tmp_path/'synthetic.jpg';Image.new('RGB',(10,10),'red').save(path)
-    with pytest.raises(ValueError,match='strutturata'):
+    with pytest.raises(ValueError,match='structured'):
         vlm.assess(path,{'original_instructions':'cerchi, quadrati','original_criteria':[],
             'requested_categories':[{'id':'red','description':'cerchi'},{'id':'blue','description':'quadrati'}],
             'category_mode':'any','category_only':True})
     assert len(prompts)==2
-    assert 'una categoria yes basta' in prompts[1]
+    assert 'one yes category is sufficient' in prompts[1]
 
 
 def test_explicit_same_image_mode_mismatch_requires_retry_without_rewriting():
@@ -460,7 +460,7 @@ def test_general_shape_interpretation_prompt_does_not_suggest_unrequested_subjec
     vlm.interpret('cerchi rossi e quadrati blu',[])
     assert 'ritratt' not in prompts[0].lower()
     assert 'uccelli' not in prompts[0].lower()
-    assert 'non elencare limiti generici' in prompts[0].lower()
+    assert 'do not list generic model limitations' in prompts[0].lower()
 
 
 def test_negated_rich_subject_list_may_have_one_positive_category():
@@ -483,8 +483,8 @@ def test_pure_recovery_retains_all_unknowns_after_confirmed_target_without_model
         return {'match':match,'reason':'synthetic evidence','scene':'synthetic','preference_score':.5,
                 'category_matches':{'subject':'yes'},'quality_issues':[]}|extra
     assessments={'0':assessment('yes'),'1':assessment('yes'),'2':assessment('no'),
-                 '3':assessment('uncertain'),'4':assessment('uncertain',error='Risposta non valida',error_kind='schema'),
-                 '5':assessment('uncertain',error='Anteprima mancante')}
+                 '3':assessment('uncertain'),'4':assessment('uncertain',error='Invalid response',error_kind='schema'),
+                 '5':assessment('uncertain',error='Missing preview')}
     records={pid:{'assessment':value} for pid,value in assessments.items()}
     before=copy.deepcopy((snapshot,interpretation,assessments,records))
     monkeypatch.setattr(LocalVLM,'__init__',lambda *args:pytest.fail('Recovery must not instantiate a model'))
@@ -496,7 +496,7 @@ def test_pure_recovery_retains_all_unknowns_after_confirmed_target_without_model
     assert recovered['diagnostics']['invalid']==1 and recovered['diagnostics']['missing_preview']==1
     assert recovered['diagnostics']['yes']==2  # no fabricated conversion of unknowns
     assert recovered['coverage'][0]['selected_ids']==['0','1']
-    assert all('Da rivedere' in recovered['shortlist_reasons'][pid] for pid in recovered['review_ids'])
+    assert all('Requires review' in recovered['shortlist_reasons'][pid] for pid in recovered['review_ids'])
     assert (snapshot,interpretation,assessments,records)==before
 
 
@@ -512,7 +512,7 @@ def test_all_uncertain_included_above_target_without_confirmed_coverage():
     assert result['coverage'][0]['status']=='uncertain' and result['coverage'][0]['selected_ids']==[]
     assert result['diagnostics']['yes']==0 and result['diagnostics']['confirmed_proposal']==0
     assert result['partial'] and not result['incomplete']
-    assert any('Quantità indicativa superata' in w for w in result['warnings'])
+    assert any('Indicative quantity exceeded' in w for w in result['warnings'])
     snapshot['decisions']={'0':{'state':'excluded','locked':True},'1':{'state':'alternative','locked':False}}
     manual=proposal_from_assessments(snapshot,interpretation,assessments,{}, {})
     assert manual['shortlist']==manual['review_ids']==['2']
@@ -528,4 +528,4 @@ def test_unknown_manual_candidate_does_not_consume_confirmed_target_and_missing_
     result=proposal_from_assessments(snapshot,interpretation,assessments,{}, {})
     assert result['shortlist']==['0','1','2'] and result['review_ids']==['1','2']
     assert result['diagnostics']['not_assessed']==1
-    assert result['shortlist_reasons']['1']=='Decisione manuale preservata.'
+    assert result['shortlist_reasons']['1']=='Manual decision preserved.'

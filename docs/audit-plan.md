@@ -1,32 +1,58 @@
-# Audit e implementazione — novembre 2026
+# Audit and implementation — November 2026
 
-## Ordine di consegna approvato
+## Approved delivery order
 
-1. Piani stelle immutabili confermati, ripresa del piano attivo, annullamento dentro il write gate, ricevute persistenti; criteri non supportati dichiarati e revisione coerente.
-2. Collaudo reale sul catalogo JPEG autorizzato, mai sul 2026. L'assenza di controllo grafico non autorizza ad aprire Lightroom genericamente o a leggere il database del catalogo.
-3. Servizi incrementali nello stesso catalogo, archivio locale, decisioni annullabili, confronto e scorciatoie.
-4. Evidenze locali e ritagli dei volti; calibrazione su un campione reale autorizzato prima di usare somiglianza per ridurre candidate.
-5. Raccolta Classic facoltativa locale, soltanto dopo collaudo SDK e verifica della mancata sincronizzazione. Disattivata per impostazione predefinita; nessuna scrittura di raccolte nella versione corrente.
+1. Immutable confirmed star plans, active-plan resumption, cancellation inside the
+   write gate and persistent receipts; unsupported criteria and revisions remain clear.
+2. Real testing only on the explicitly authorized test catalog. Missing graphical
+   control never authorizes generic Lightroom startup or direct catalog database access.
+3. Incremental services in the same catalog, local archiving, reversible decisions,
+   comparison and keyboard shortcuts.
+4. Local evidence and face crops; calibrate similarity on an authorized real sample
+   before using it to reduce candidates.
+5. Optional local Classic collections only after real SDK tests and proof that
+   creation does not enable synchronization. No collection writes are implemented.
 
-Le fasi implementabili con dati sintetici possono procedere mentre il collaudo grafico è bloccato. Questo non equivale ad aver superato la verifica Lightroom.
+Synthetic work can proceed while native testing is blocked. This does not count
+as passing a Lightroom test. English native dialogs require their own manual test.
 
-## Riferimenti di prodotto
+## Product references
 
-- Narrative: dettagli dei volti accanto alla foto intera, mantenendo il contesto. https://help.narrative.so/en/articles/7337371-zoom-and-close-ups-in-narrative
-- Aftershoot: revisione assistita di gruppi e duplicati con scelta manuale. https://support.aftershoot.com/en/articles/5223473-get-started-with-aftershoot-culling
-- Adobe Assisted Culling: criteri e risultati consultabili. https://helpx.adobe.com/lightroom-classic/desktop/organize-photos-in-lightroom-classic/assisted-culling.html
-- Una raccolta Classic non richiede sincronizzazione: l'opzione Sync with Lightroom è distinta. Questo dato di prodotto non prova da solo il comportamento dell'SDK. https://helpx.adobe.com/uk/lightroom-classic/desktop/organize-photos-in-lightroom-classic/photo-collections.html
+- Narrative: face close-ups alongside the full photograph preserve context.
+  https://help.narrative.so/en/articles/7337371-zoom-and-close-ups-in-narrative
+- Aftershoot: assisted group/duplicate review with manual selection.
+  https://support.aftershoot.com/en/articles/5223473-get-started-with-aftershoot-culling
+- Adobe Assisted Culling: inspectable criteria and results.
+  https://helpx.adobe.com/lightroom-classic/desktop/organize-photos-in-lightroom-classic/assisted-culling.html
+- Classic collection synchronization is a separate option. This product fact alone
+  does not establish SDK behavior.
+  https://helpx.adobe.com/uk/lightroom-classic/desktop/organize-photos-in-lightroom-classic/photo-collections.html
 
-Non vengono copiati sviluppo, cancellazioni, flags o automatismi di esclusione basati unicamente sulla qualità.
+Develop changes, deletion, flags and quality-only exclusion automation are not adopted.
 
-## Evidenze locali
+## Local evidence
 
-Le estrazioni leggono solo anteprime già importate. La cache `feature-cache.sqlite3` nella directory dati dell'app contiene risultati riusciti indicizzati da SHA-256 dell'anteprima e identità del componente. Per SigLIP l'identità include i pesi/configurazioni e il runtime; per Apple Vision include hash dell'eseguibile e versione del sistema. Un'interruzione mantiene la cache già scritta; errori di rilevamento non sono memorizzati come risultati validi. Il risultato complessivo viene applicato solo alla revisione di servizio verificata.
+Extraction reads only imported previews. `feature-cache.sqlite3` in application
+storage contains successful results indexed by preview SHA-256 and component
+identity. SigLIP identity includes weights/configuration and runtime; Apple Vision
+identity includes executable hash and OS version. Interruption preserves written
+cache entries; detector errors are not stored as valid evidence. Combined results
+apply only to the checked service revision.
 
-I vicini nello spazio visivo sono suggerimenti di confronto, non gruppi di equivalenza o esclusioni. Nessuna soglia è dichiarata calibrata. I ritagli di volti provengono da coordinate Apple Vision normalizzate con origine in basso a sinistra; non rappresentano identità, presenza certa di tutte le persone o valutazioni affidabili degli occhi.
+Visual neighbors are comparison suggestions rather than automatic equivalence or
+exclusion claims. No threshold is declared calibrated. Face crops use normalized
+Apple Vision coordinates with a bottom-left origin; they do not establish identity,
+complete person detection or reliable eye assessments.
 
-## Benchmark sintetico riproducibile
+## Reproducible synthetic benchmark
 
-Eseguire `.venv/bin/python scripts/benchmark_scale.py`. Crea due directory temporanee isolate, importa 1.000 e 5.000 metadati sintetici, una singola anteprima uniforme per ciascun servizio, misura lettura dettaglio e richieste anteprima e avvia il motore conservativo. Le altre immagini prive di anteprima devono restare candidate. Non misura importazione di migliaia di JPEG, rendering browser di migliaia di miniature, accuratezza IA o prestazioni su RAW.
+Run `.venv/bin/python scripts/benchmark_scale.py`. It creates two isolated temporary
+directories, imports 1,000 and 5,000 synthetic metadata records with one uniform
+preview per service, measures detail reads and preview requests, then runs the
+conservative engine. Missing-preview photographs must remain candidates. It does
+not measure thousands of JPEG imports, browser thumbnail rendering, AI accuracy
+or RAW performance.
 
-Il benchmark umano resta `scripts/benchmark.py`: annotare situazioni significative, immagini uniche e coppie da non raggruppare; confrontare separatamente calibrazione e verifica. Nessuna fotografia personale o annotazione identificativa va nel repository.
+The human benchmark remains `scripts/benchmark.py`: annotate meaningful situations,
+unique images and pairs that must not be grouped. Keep calibration separate from
+verification. Personal photographs and identifying annotations do not belong in Git.

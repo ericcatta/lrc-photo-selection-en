@@ -17,11 +17,11 @@ local function metadata(catalog, photos)
         local values = raw[photo]
         if not values.isVideo then
             local uuid, localID = Common.key(values.uuid), photo.localIdentifier
-            assert(type(localID) == 'number' and localID >= 0 and localID % 1 == 0, 'Identificativo Lightroom non valido.')
+            assert(type(localID) == 'number' and localID >= 0 and localID % 1 == 0, 'Invalid Lightroom identifier.')
             local id = uuid .. ':' .. string.format('%.0f', localID)
-            assert(not objects[id], 'Identificativi Lightroom duplicati.')
+            assert(not objects[id], 'Duplicate Lightroom identifiers.')
             local shown = formatted[photo]
-            local camera = shown.cameraModel or 'Sconosciuta'
+            local camera = shown.cameraModel or 'Unknown'
             if shown.cameraSerialNumber and shown.cameraSerialNumber ~= '' then camera = camera .. ' · ' .. shown.cameraSerialNumber end
             local taken = values.dateTimeOriginal
             manifest[#manifest + 1] = {
@@ -41,19 +41,19 @@ local function askTitle(context, label, count)
     properties.title = ''
     local view = View.osFactory()
     local answer = Dialogs.presentModalDialog {
-        title = 'Prepara servizio',
+        title = 'Prepare service',
         contents = view:column {
             bind_to_object = properties,
-            view:static_text { title = 'Catalogo: ' .. label },
-            view:static_text { title = tostring(count) .. ' fotografie nella selezione attuale.' },
+            view:static_text { title = 'Catalog: ' .. label },
+            view:static_text { title = tostring(count) .. ' photos in the current selection.' },
             view:edit_field { value = View.bind 'title', width_in_chars = 42 },
-            view:static_text { title = 'Poi continua nella web app: istruzioni → analisi → revisione → Lightroom.' },
+            view:static_text { title = 'Then continue in the web app: instructions → analysis → review → Lightroom.' },
             Guide.button(),
-        }, actionVerb = 'Prepara anteprime', cancelVerb = 'Annulla',
+        }, actionVerb = 'Prepare previews', cancelVerb = 'Cancel',
     }
     if answer ~= 'ok' then return nil end
     local title = properties.title:match('^%s*(.-)%s*$')
-    assert(#title > 0 and #title <= 200, 'Inserisci un titolo di servizio valido.')
+    assert(#title > 0 and #title <= 200, 'Enter a valid service title.')
     return title
 end
 
@@ -73,18 +73,18 @@ local function preview(photo, progress)
     return data
 end
 
-Common.run('Prepara servizio', function(context)
+Common.run('Prepare service', function(context)
     Common.token()
     local catalog, path, label = Common.catalog()
-    assert(catalog:getTargetPhoto(), 'Seleziona le fotografie da importare in Lightroom.')
+    assert(catalog:getTargetPhoto(), 'Select the photographs to prepare in Lightroom.')
     local photos = catalog:getTargetPhotos()
-    assert(#photos > 0, 'Nessuna fotografia selezionata.')
+    assert(#photos > 0, 'No photographs selected.')
     local registration = Common.registration(path, true)
     local pendingFile = Common.file('imports', registration)
     local pending = Common.read(pendingFile)
     local title, appendTo
     if pending and pending.manifest then
-        local answer = Dialogs.confirm('Importazione sospesa', 'Riprendi «' .. pending.manifest.title .. '» nel catalogo ' .. label .. '.', 'Riprendi', 'Annulla', not pending.append_to and 'Nuovo servizio' or nil)
+        local answer = Dialogs.confirm('Import paused', 'Resume “' .. pending.manifest.title .. '” in catalog ' .. label .. '.', 'Resume', 'Cancel', not pending.append_to and 'New service' or nil)
         if answer == 'other' and not pending.append_to then
             title = askTitle(context, label, #photos)
             if not title then return end
@@ -94,10 +94,10 @@ Common.run('Prepara servizio', function(context)
             appendTo = pending.append_to
         else return end
     else
-        local answer = Dialogs.confirm('Prepara servizio', 'Usa le foto selezionate per un nuovo servizio o aggiungile a un servizio esistente.', 'Nuovo servizio', 'Annulla', 'Aggiungi a servizio')
+        local answer = Dialogs.confirm('Prepare service', 'Use the selected photos for a new service or add them to an existing service.', 'New service', 'Cancel', 'Add to service')
         if answer == 'other' then
             appendTo = Selection.chooseService(context, registration, label, {
-                title = 'Aggiungi a un servizio', action = 'Aggiungi foto', statuses = {ready = true},
+                title = 'Add to a service', action = 'Add photos', statuses = {ready = true},
             })
             if not appendTo then return end
             title = Common.request('GET', '/api/services/' .. appendTo).title
@@ -108,13 +108,13 @@ Common.run('Prepara servizio', function(context)
     end
     Common.assertCatalog(path)
     local selected, objects = metadata(catalog, photos)
-    assert(#selected > 0, 'La selezione non contiene fotografie supportate.')
+    assert(#selected > 0, 'The selection contains no supported photographs.')
     local manifest = pending and pending.manifest
     if manifest then
-        assert(#selected == #manifest.photos, 'Per riprendere, seleziona esattamente le fotografie originali del servizio.')
+        assert(#selected == #manifest.photos, 'To resume, select exactly the original set of service photographs.')
         local current = {}
         for _, p in ipairs(selected) do current[p.id] = p end
-        for _, p in ipairs(manifest.photos) do assert(current[p.id], 'La selezione per la ripresa contiene fotografie diverse.') end
+        for _, p in ipairs(manifest.photos) do assert(current[p.id], 'The selection for resuming contains different photographs.') end
     else
         manifest = { schema_version = 1, id = Common.newID(registration), title = title,
             catalog_id = registration, catalog_label = label, photos = selected }
@@ -133,14 +133,14 @@ Common.run('Prepara servizio', function(context)
                 if accepted[item.id] then upload[#upload + 1] = item end
             end
             service = Common.request('GET', endpoint)
-            assert(service.status == 'importing', 'Importazione incrementale non attiva: dati di ripresa conservati.')
+            assert(service.status == 'importing', 'Importazione incrementale non attiva: dati of ripresa conservati.')
         end
     else
         service = Common.request('POST', '/api/imports', manifest)
         upload = manifest.photos
     end
     if service and service.status == 'importing' then
-        local progress = Progress { title = 'Preparazione anteprime Lightroom', functionContext = context }
+        local progress = Progress { title = 'Preparing Lightroom previews', functionContext = context }
         local missing, ready = 0, {}
         for _, p in ipairs(service.photos) do ready[p.id] = p.preview_ready end
         for index, item in ipairs(upload) do
@@ -159,9 +159,9 @@ Common.run('Prepara servizio', function(context)
             progress:setPortionComplete(index, #upload)
         end
         progress:done()
-        if missing > 0 and Dialogs.confirm('Anteprime mancanti',
-            tostring(missing) .. ' fotografie senza anteprima. Annulla per riprovare oppure chiudi l’importazione con le anteprime disponibili.',
-            'Concludi importazione', 'Lascia in sospeso') ~= 'ok' then return end
+        if missing > 0 and Dialogs.confirm('Missing previews',
+            tostring(missing) .. ' photographs have no preview. Cancel to try again, or finish the import with the available previews.',
+            'Finish import', 'Leave paused') ~= 'ok' then return end
         Common.request('POST', endpoint .. '/complete', appendTo and {import_id = manifest.id} or 'null')
     end
     Common.write(pendingFile, { completed = true })

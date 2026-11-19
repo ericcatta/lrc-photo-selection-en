@@ -1,53 +1,75 @@
-# Contratto v1
+# Version 1 exchange contract
 
-La fonte eseguibile dei contratti è `backend/lrc_selection/models.py`; OpenAPI viene esposta dal backend. Gli scambi plugin usano `schema_version: 1`.
+The executable contracts are defined in `backend/lrc_selection/models.py`.
+OpenAPI is served by the backend. Plugin exchanges use `schema_version: 1`.
 
-- `POST /api/imports`: manifest servizio completo; retry identico idempotente.
-- `PUT /api/services/{id}/photos/{photo_id}/preview`: corpo JPEG; token Bearer.
-- `POST /api/services/{id}/complete`: chiude importazione.
-- `GET /api/services` e `GET /api/services/{id}`: riepilogo e stato.
-- `PUT /api/services/{id}/settings`: revisione attesa + snapshot impostazioni.
-- `PATCH /api/services/{id}/decisions/{photo_id}`: revisione, stato, blocco; `confirm_last` esplicito per ultima candidata.
-- `POST /api/services/{id}/analyze`: avvio esplicito, revisione attesa.
-- `POST /api/services/{id}/rating-plan`: prepara elenco verificabile, non applica stelle.
-- `POST /api/services/{id}/rating-plan/confirm`: `{batch_id}` conferma l’elenco esatto visto dall’utente.
-- `GET /api/services/{id}/rating-plan/latest`: restituisce il piano attivo, altrimenti quello confermato; mai l’ultimo piano arbitrario. Rifiuta piani obsoleti.
-- `POST /api/services/{id}/rating-plan/claim`: riserva il piano e blocca le modifiche web fino alla ricevuta completa.
-- `POST /api/services/{id}/rating-receipts`: esiti per piano, retry identico idempotente.
+- `POST /api/imports`: full service manifest; identical retries are idempotent.
+- `PUT /api/services/{id}/photos/{photo_id}/preview`: JPEG body; Bearer authentication.
+- `POST /api/services/{id}/complete`: finish an import.
+- `GET /api/services` and `GET /api/services/{id}`: summaries and current state.
+- `PUT /api/services/{id}/settings`: expected revision and settings snapshot.
+- `PATCH /api/services/{id}/decisions/{photo_id}`: revision, state and lock;
+  explicit `confirm_last` for the last candidate.
+- `POST /api/services/{id}/analyze`: explicit analysis start with expected revision.
+- `POST /api/services/{id}/rating-plan`: prepare a reviewable list; applies no stars.
+- `POST /api/services/{id}/rating-plan/confirm`: `{batch_id}` confirms the exact list
+  reviewed by the user.
+- `GET /api/services/{id}/rating-plan/latest`: return the active plan, otherwise the
+  confirmed plan; never an arbitrary newest plan. Obsolete plans are rejected.
+- `POST /api/services/{id}/rating-plan/claim`: reserve the plan and block web changes
+  until a complete receipt arrives.
+- `POST /api/services/{id}/rating-receipts`: per-plan outcomes; identical retries are
+  idempotent.
 
-Le sole target_rating consentite dal produttore di piani sono 1, per baseline 0. Il plugin deve validare di nuovo ogni item: non fidarsi ciecamente di un JSON ricevuto. Catalogo e foto si identificano con ID, mai con il nome file. Ricevute non contengono originali, cataloghi o segreti.
+Only `target_rating: 1` from baseline zero is produced by the planner. The plugin
+must validate every item again rather than trust the client. Photo identity uses
+IDs, never filenames. Receipts contain no originals, catalogs or secrets.
 
-## Estensioni additive v1
+## Additive version 1 extensions
 
-- `POST /api/services/{id}/append`: `{schema_version:1,id:<UUID operazione>,catalog_id,photos:[Photo]}`; restituisce `{photo_ids,completed}`. Stesso catalogo obbligatorio, retry identico idempotente, identità in conflitto rifiutata. Foto esistenti ignorate senza aggiornare il baseline.
-- `POST /api/services/{id}/complete`: per un’aggiunta richiede `{import_id}`; il primo import mantiene il body opzionale. L’aggiunta invalida i piani e richiede analisi esplicita; il target resta invariato.
-- `PUT /api/services/{id}/archive`: `{revision,archived}`. Archiviazione solo a operazioni concluse; nessuna cancellazione dei dati.
-- `POST /api/services/{id}/replace`: `{revision,from_photo_id,to_photo_id}`; candidata e alternativa nello stesso gruppo, entrambe sbloccate, modifica atomica.
-- `POST /api/services/{id}/undo` e `/redo`: `{revision}`. Cronologia persistente delle decisioni; i dettagli espongono `can_undo` e `can_redo`. Non annulla modifiche Lightroom.
-- `GET /api/capabilities`: disponibilità dei componenti locali (`features`, `faces`, `siglip`), senza percorsi privati.
-- `POST /api/services/{id}/features`: `{revision}`, avvio esplicito dell’estrazione dei componenti locali configurati. Usa il medesimo stato job; nessun download o richiesta cloud.
+- `POST /api/services/{id}/append`: `{schema_version:1,id:<operation UUID>,catalog_id,
+  photos:[Photo]}` returns `{photo_ids,completed}`. The catalog must match; identical
+  retries are idempotent and identity conflicts are rejected. Existing photos are
+  ignored without updating baselines.
+- `POST /api/services/{id}/complete`: additions require `{import_id}`; the initial
+  import retains an optional body. Additions invalidate plans and require explicit
+  analysis; the target is preserved.
+- `PUT /api/services/{id}/archive`: `{revision,archived}`. Only completed operations
+  can be archived; data is not deleted.
+- `POST /api/services/{id}/replace`: `{revision,from_photo_id,to_photo_id}`. Atomic
+  replacement of an unlocked candidate and alternative in the same group.
+- `POST /api/services/{id}/undo` and `/redo`: `{revision}`. Persistent decision
+  history; service details expose `can_undo` and `can_redo`. Does not undo Lightroom
+  changes.
+- `GET /api/capabilities`: local component availability (`features`, `faces`,
+  `siglip`) without private paths.
+- `POST /api/services/{id}/features`: `{revision}`, explicit extraction using
+  configured local components. Uses the same job state; no download or cloud request.
 
-Aggiornare backend, web app e plugin insieme: i nuovi plugin richiedono la conferma esplicita del piano. `PRAGMA user_version=1` riguarda solo SQLite dell’app; l’aggiornamento è additivo, non riscrive i servizi esistenti. I campi mancanti di archivio e cronologia assumono i valori iniziali. I digest dei manifest v1 esistenti sono preservati.
+Update the backend, web app and plugin together. New plugins require explicit plan
+confirmation. `PRAGMA user_version=1` applies only to the application SQLite store;
+updates are additive and do not rewrite existing services. Missing archive/history
+fields use initial defaults. Existing version 1 manifest digests are preserved.
 
-## Navigazione guidata v1
+## Guided navigation version 1
 
-`GET /api/services/{id}` aggiunge `workflow` con `schema_version:1`, percorso
-`local|hybrid|openai`, fase `configure|analyze|review|lightroom|outcome`, stato
-della proposta, conteggi e identificativi del piano. `outcome` è valorizzato
-soltanto per la ricevuta pertinente alla revisione corrente e separa
-`applied`, `skipped`, `conflict`, `uncertain`, `total`. Non autorizza operazioni.
+`GET /api/services/{id}` adds `workflow` with `schema_version:1`, route
+`local|hybrid|openai`, phase `configure|analyze|review|lightroom|outcome`, proposal
+state, counts and plan identifiers. `outcome` is populated only for the receipt
+relevant to the current revision and separates `applied`, `skipped`, `conflict`,
+`uncertain` and `total`. It does not authorize actions.
 
-`Settings.workflow_path` è facoltativo: se assente si usa il precedente `mode`.
-Il percorso diretto OpenAI mantiene `mode=hybrid` per compatibilità dei controlli
-esistenti, ma viene distinto esplicitamente nella navigazione.
+`Settings.workflow_path` is optional; absent values use the previous `mode`.
+Direct OpenAI retains `mode=hybrid` for compatibility with existing guards, while
+navigation distinguishes it explicitly.
 
-`GET /api/services/{id}/api-status` aggiunge `resume` per l’ultimo tentativo
-interrotto: piano, ID esatti del campione, compatibilità, motivo, avanzamento e
-obiettivo finale. Una nuova stima non nasconde il tentativo interrotto. Questo
-riepilogo non recupera consensi e non avvia chiamate API.
+`GET /api/services/{id}/api-status` adds `resume` for the latest interrupted attempt:
+plan, exact sample IDs, compatibility, reason, progress and final target. A new
+estimate does not hide the interrupted attempt. This summary never restores
+consent or starts API calls.
 
-La proposta espone `effective_shortlist`: lista automatica con inclusioni ed
-esclusioni manuali sovrapposte. Il riepilogo workflow include `blocked` e
-`blocked_reasons`; un blocco di interpretazione non equivale a un’analisi foto
-completata. Una selezione manuale confermata può superare il blocco operativo
-senza cancellarne la diagnostica.
+The proposal exposes `effective_shortlist`: the automatic list with manual
+inclusions and exclusions applied. The workflow summary includes `blocked` and
+`blocked_reasons`; an interpretation block is not completed photo analysis.
+Confirming a manual selection can clear the operational block without removing
+its diagnostics.

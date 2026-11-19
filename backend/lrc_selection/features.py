@@ -16,7 +16,7 @@ from .store import Store
 class SiglipEncoder:
     def __init__(self, model_dir: Path):
         if not model_dir.is_dir():
-            raise ValueError('Indicare una directory locale di pesi già scaricati e verificati')
+            raise ValueError('Specify a local directory containing downloaded and verified weights')
         # Imports are lazy so the complete manual/local baseline needs no ML stack.
         import torch
         from transformers import AutoModel, AutoProcessor, __version__ as transformers_version
@@ -26,7 +26,7 @@ class SiglipEncoder:
         self.model = AutoModel.from_pretrained(str(model_dir), local_files_only=True, trust_remote_code=False).to(self.device).eval()
         config = self.model.config
         if getattr(config, 'model_type', '') not in {'siglip', 'siglip2'}:
-            raise ValueError('Questo adattatore accetta soltanto checkpoint SigLIP 2')
+            raise ValueError('This adapter supports only SigLIP 2 checkpoints')
         hashes = {}
         for path in sorted(model_dir.rglob('*')):
             if path.is_file() and path.suffix in ('.json', '.safetensors', '.model', '.txt'):
@@ -63,7 +63,7 @@ def face_rectangles(tool, path):
     result = json.loads(completed.stdout)[0]
     return {'engine': 'Apple Vision VNDetectFaceRectanglesRequest', 'os': platform.mac_ver(),
             'observations': result['faces'], 'error': result.get('error'),
-            'warning': 'Nessun volto rilevato non significa nessuna persona. Identità non confrontata.'}
+            'warning': 'No detected face does not mean no person is present. Identities were not compared.'}
 
 class FeatureCache:
     """Successful component results survive interrupted runs; no source paths stored."""
@@ -101,10 +101,10 @@ def comparison_suggestions(records):
     import numpy as np
     matrix = np.asarray([v for _, v in vectors], dtype=np.float32)
     if matrix.ndim != 2 or not np.isfinite(matrix).all():
-        raise ValueError('Embedding non validi')
+        raise ValueError('Invalid embeddings')
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     if (norms == 0).any():
-        raise ValueError('Embedding nullo')
+        raise ValueError('Zero embedding')
     matrix = matrix / norms
     pairs = {}
     for start in range(0, len(vectors), 128):
@@ -116,7 +116,7 @@ def comparison_suggestions(records):
             a, b = sorted((vectors[i][0], vectors[j][0]))
             pairs[(a, b)] = {'photo_id': a, 'other_photo_id': b,
                             'cosine_similarity': float(np.clip(row[j], -1, 1)),
-                            'reason': 'Vicina nello spazio visivo: confronto suggerito, equivalenza non dimostrata.'}
+                            'reason': 'Nearby in visual space: comparison suggested, equivalence not established.'}
     return sorted(pairs.values(), key=lambda pair: (-pair['cosine_similarity'], pair['photo_id'], pair['other_photo_id']))
 
 
@@ -126,7 +126,7 @@ def extract(store, sid, encoder=None, vision_tool=None, *, job_revision=None):
     if job_revision is not None:
         store.check_revision(service, job_revision)
     if service['status'] != expected_status or service.get('archived'):
-        raise ValueError('Servizio non pronto')
+        raise ValueError('Service not ready')
     revision = service['revision']
     records = {}
     cache = FeatureCache(store.root)
@@ -136,12 +136,12 @@ def extract(store, sid, encoder=None, vision_tool=None, *, job_revision=None):
                            'os': platform.mac_ver(), 'adapter': 'apple-vision-rectangles-v1'}
     for photo in service['photos']:
         if not photo['preview_ready']:
-            records[photo['id']] = {'error': 'Anteprima mancante'}
+            records[photo['id']] = {'error': 'Missing preview'}
             continue
         path = store.preview_path(sid, photo['id'])
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest != photo['preview_sha256']:
-            raise ValueError('Anteprima cambiata: reimportare prima di analizzare')
+            raise ValueError('Preview changed: import again before analysis')
         record = {'preview_sha256': digest}
         if encoder:
             record['embedding'] = cache.get_or_compute(digest, 'embedding', encoder.identity, lambda: encoder.encode(path))
@@ -149,12 +149,12 @@ def extract(store, sid, encoder=None, vision_tool=None, *, job_revision=None):
             record['faces'] = cache.get_or_compute(digest, 'faces', vision_identity, lambda: face_rectangles(vision_tool, path))
         records[photo['id']] = record
     evidence = {'schema_version': 1, 'model': encoder.identity if encoder else None, 'records': records, 'comparisons': comparison_suggestions(records),
-                'warning': 'Evidenze non calibrate: nessuna foto esclusa automaticamente sulla base di questi segnali.'}
+                'warning': 'Uncalibrated evidence: no photos automatically excluded based on these signals.'}
     with store.transaction() as db:
         latest = store.get(sid, db)
         store.check_revision(latest, revision)
         if latest['status'] != expected_status:
-            raise ValueError('Servizio occupato: estrazione non applicata')
+            raise ValueError('Service busy: extraction not applied')
         latest['interpretations'] = evidence
         latest.pop('confirmed_batch_id', None)
         if job_revision is not None:
@@ -165,17 +165,17 @@ def extract(store, sid, encoder=None, vision_tool=None, *, job_revision=None):
     return evidence
 
 def main():
-    parser = argparse.ArgumentParser(description='Estrae segnali locali soltanto da anteprime già importate; nessun download')
+    parser = argparse.ArgumentParser(description='Extracts local signals only from previously imported previews; no downloads')
     parser.add_argument('--data-dir', required=True, type=Path)
     parser.add_argument('--service-id', required=True)
     parser.add_argument('--siglip-dir', type=Path)
     parser.add_argument('--vision-tool', type=Path)
     args = parser.parse_args()
     if not args.siglip_dir and not args.vision_tool:
-        parser.error('Specificare almeno un componente locale')
+        parser.error('Specify at least one local component')
     encoder = SiglipEncoder(args.siglip_dir) if args.siglip_dir else None
     result = extract(Store(args.data_dir), args.service_id, encoder, args.vision_tool)
-    print(f"Evidenze salvate per {len(result['records'])} foto; selezione non modificata.")
+    print(f"Evidence saved for {len(result['records'])} photos; selection unchanged.")
 
 if __name__ == '__main__':
     main()

@@ -1,45 +1,48 @@
-# LrC Photo Selection
+# LrC Photo Selection — English edition
 
-**Una prima selezione ragionata delle fotografie, da rifinire in Lightroom Classic.**
+**A guided first selection of photographs, ready to review in Lightroom Classic.**
 
-LrC Photo Selection collega un plugin Lightroom a una web app che funziona sul Mac. Parti dalle foto di un servizio, descrivi cosa vuoi conservare e rivedi una proposta prima di riportarla in Lightroom attraverso le stelle. L’interfaccia e la guida sono in italiano.
+[🇮🇹 Italian edition](https://github.com/ericcatta/lrc-photo-selection) · **English edition**
 
-L’obiettivo non è scegliere soltanto le immagini più nitide: contano le tue istruzioni, la varietà delle situazioni e il valore fotografico. Un’espressione, una composizione o un momento significativo possono prevalere sulla perfezione tecnica.
+LrC Photo Selection connects a Lightroom Classic plugin to a web application running on your Mac. Start with a selected set of photographs, describe what you want to keep, review the proposal, and send the confirmed selection back to Lightroom as star ratings. This edition's interface, plugin dialogs, guide and documentation are in English. Your own instructions are preserved exactly as you enter them.
 
-> Il progetto è una prima versione funzionante, in evoluzione. Le proposte dei modelli richiedono revisione: non sono una garanzia di riconoscimento corretto di persone, soggetti o situazioni.
+The goal is not simply to keep the sharpest photographs. Your instructions, distinct situations, expression, composition and photographic meaning take priority. A memorable but technically imperfect photograph can be more useful than another polished near-duplicate.
 
-## Cosa puoi fare
+> This is an early working project. AI proposals need human review; they do not guarantee correct recognition of subjects, people or situations.
 
-- Scrivere **istruzioni libere in un unico campo**, partire da un preset modificabile e salvare nuovi preset. Il testo originale viene mantenuto, anche negli invii OpenAI.
-- Scegliere **Solo locale**, **Locale + OpenAI** oppure **Direttamente OpenAI**. Non serve una chiave API per usare il percorso locale.
-- Impostare la quantità per ogni servizio. La quantità locale e quella finale OpenAI sono separate.
-- Rivedere il provino, aprire una foto in grande, navigare tra le anteprime, confrontare due foto e includere o escludere manualmente le immagini. Sono disponibili blocco delle decisioni, annulla/ripristina e filtri.
-- Dare priorità a **situazioni distinte**: prima una rappresentante per situazione, poi ulteriori varianti distribuite tra i gruppi. La bellezza fotografica e le istruzioni precedono la sola nitidezza.
-- Conservare le immagini incerte come **da rivedere**. Se servono 23 foto per rappresentare le situazioni disponibili e ne hai chieste 20, la proposta può superare il numero. Le decisioni manuali prevalgono.
-- Usare OpenAI soltanto dopo aver visto campione, modello, valutazioni nuove o riutilizzabili e costo stimato, quando disponibile. Il confronto riguarda **il campione confermato**, non automaticamente tutte le foto importate.
-- Salvare servizi locali, aggiungere nuove foto allo stesso servizio e archiviare i lavori conclusi senza cancellarli.
+## What it does
 
-## Cosa cambia in Lightroom
+- One editable instruction field, optional editable presets and saved preset versions per service.
+- **Local only**, **Local + OpenAI**, and **Directly OpenAI** workflows. Local operation does not need an OpenAI key.
+- Separate local candidate and final OpenAI quantity targets.
+- A contact sheet with filters, manual inclusion/exclusion, locked choices, undo/redo, two-photo comparison, and a large navigable preview. Use **← →** to browse and **Esc** to close the preview.
+- **Distinct situations first:** choose one representative from each eligible group before adding more variants. Photographic merit orders the alternatives within each group.
+- Balanced extra rounds: if there are 10 distinct groups and the target is 20, add a second choice from each group when available, rather than taking all extras from one group.
+- A **soft target**: 23 situations may produce 23 candidates even when the requested quantity is 20. Manual inclusions, category coverage and uncertain photographs can also exceed the target.
+- Explicit OpenAI review and confirmation, including the exact sample, model, new and reusable evaluations, and estimated cost when known. Variety is assessed only within the confirmed sample.
+- Persistent local services, incremental imports within the same catalog, and archiving without deleting the service.
 
-**L’unica modifica ai dati delle fotografie è assegnare una stella alle candidate idonee che hanno zero stelle**, dopo anteprima dell’elenco e conferma nella web app e nel plugin.
+## What changes in Lightroom
 
-Le stelle già presenti non vengono abbassate o rimosse. Escludere una foto nella web app non cancella il file e non toglie stelle. Il plugin non modifica sviluppo, flag, etichette, parole chiave o raccolte; non sposta, rinomina o elimina originali e sidecar.
+**The only photograph-data change is assigning one star to eligible candidates that currently have zero stars**, after preview and confirmation in both the web application and Lightroom.
 
-Il comando **Mostra le candidate in Lightroom** cambia soltanto la selezione temporanea nella vista. L’accesso a Lightroom avviene tramite SDK ufficiale, senza leggere o scrivere direttamente il database del catalogo.
+Existing ratings are never lowered or removed. Excluding a photograph in the web app does not delete its file or remove its stars. The plugin does not alter develop settings, flags, color labels, keywords or collections. It does not move, rename or delete originals or sidecars.
 
-## Installazione più semplice sul Mac
+**Show candidates in Lightroom** changes only the temporary selection in the current view. All Lightroom access uses Adobe's official Lua SDK; the catalog database is never accessed directly.
 
-Non è ancora un’app distribuita con installer: serve scaricare questo progetto e preparare l’ambiente locale una volta. Il percorso principale è **macOS con Lightroom Classic**. Per il modello locale MLX serve un Mac **Apple Silicon**; altri sistemi non hanno lo stesso livello di collaudo.
+## Easiest installation on a Mac
 
-### 1. Prepara Python e Node.js
+There is no packaged application installer yet. Download the project and set up its local environment once. The supported installation path is **macOS with Lightroom Classic**. Running the optional MLX vision model locally requires **Apple Silicon**.
 
-Installa, se non sono già presenti:
+### 1. Install the prerequisites
 
-- **Python 3.11 o successivo**, dal [sito Python](https://www.python.org/downloads/macos/).
-- **Node.js con npm**, dal [sito Node.js](https://nodejs.org/en/download). La build richiede Node 20.19 o successivo nella serie 20, oppure Node 22.12 o successivo.
-- **Lightroom Classic**. Il plugin dichiara SDK minimo 12; le verifiche reali sono state eseguite con Lightroom Classic 16 su Mac.
+Install these if they are not already available:
 
-Dopo l’installazione riapri Terminale. Puoi controllare le versioni con:
+- **Python 3.11 or later** from [python.org](https://www.python.org/downloads/macos/).
+- **Node.js and npm** from [nodejs.org](https://nodejs.org/en/download). Use Node 20.19+ within the 20.x series, or 22.12 or later.
+- **Lightroom Classic**. The plugin declares SDK minimum version 12; the original edition has been manually exercised in Lightroom Classic 16 on a Mac. This English edition requires its own native-dialog acceptance check.
+
+Reopen Terminal after installing them and check:
 
 ```sh
 python3 --version
@@ -47,24 +50,24 @@ node --version
 npm --version
 ```
 
-### 2. Scarica e installa il progetto
+### 2. Download and install this edition
 
-Su GitHub scegli **Code → Download ZIP**, estrai il contenuto e sposta la cartella in una posizione stabile. In alternativa:
+On GitHub choose **Code → Download ZIP**, extract the download and move the folder to a permanent location. Alternatively:
 
 ```sh
-git clone https://github.com/ericcatta/lrc-photo-selection.git
-cd lrc-photo-selection
+git clone https://github.com/ericcatta/lrc-photo-selection-en.git
+cd lrc-photo-selection-en
 ```
 
-Apri la cartella `scripts` e fai doppio clic su **`install.command`**. Lo script verifica i requisiti, crea `.venv` nella cartella del progetto, installa le dipendenze Python e compila la web app. Richiede una connessione Internet per scaricare le dipendenze.
+Double-click **`scripts/install.command`**. It checks the prerequisites, creates a `.venv` inside this project, installs Python dependencies and builds the web interface. Internet access is needed to download dependencies.
 
-Se macOS non apre il file con un doppio clic, eseguilo da Terminale dalla cartella del progetto:
+If macOS does not open the file, run it from Terminal in the project directory:
 
 ```sh
 zsh scripts/install.command
 ```
 
-L’installazione non scarica modelli, non apre Lightroom e non invia fotografie. Per installare manualmente gli stessi componenti:
+Installation does not download AI models, launch Lightroom or transmit photographs. The equivalent manual installation is:
 
 ```sh
 python3 -m venv .venv
@@ -73,108 +76,108 @@ npm --prefix web ci
 npm --prefix web run build
 ```
 
-### 3. Avvia la web app locale
+### 3. Start the local application
 
-Fai doppio clic su **`scripts/start.command`** e lascia aperta la finestra Terminale. In alternativa, dalla cartella del progetto:
+Double-click **`scripts/start.command`** and leave its Terminal window open. Or run:
 
 ```sh
 .venv/bin/lrc-selection
 ```
 
-Il backend ascolta soltanto su **http://127.0.0.1:8765**. Non apre automaticamente Lightroom o un catalogo. Per fermarlo premi **Ctrl+C** nella sua finestra Terminale.
+The English backend listens only on **http://127.0.0.1:8766**. It never opens Lightroom or a catalog automatically. Stop it with **Ctrl+C** in its Terminal window.
 
-### 4. Aggiungi il plugin a Lightroom
+The Italian edition uses port 8765. The English edition has separate application storage and credentials, so it does not reuse or overwrite the Italian edition's services or connection token.
 
-1. Apri il catalogo Lightroom nel quale vuoi lavorare.
-2. Apri **File → Gestione plug-in** e premi **Aggiungi**.
-3. Scegli la cartella **`plugin/lrc-photo-selection.lrplugin`** dentro il progetto scaricato e chiudi Gestione plug-in. Mantieni il progetto in quella posizione.
-4. Con il backend avviato, apri **Libreria → Extra plug-in → Configura connessione locale**.
-5. Se compare **Connessione locale rilevata**, premi **Collega**. Il plugin conserva il token nel portachiavi Lightroom e apre la web app.
+### 4. Add the plugin to Lightroom
 
-Se la connessione non viene rilevata, ottieni il token in un secondo Terminale, dalla cartella del progetto:
+1. Open the catalog you intend to work in.
+2. Choose **File → Plug-in Manager → Add**.
+3. Select **`plugin/lrc-photo-selection.lrplugin`** inside this project. Keep the project at that location.
+4. With the English backend running, choose **Library → Plug-in Extras → Configure local connection** for **Photo Selection (English)**.
+5. If the dialog detects the local connection, choose **Connect**. The plugin stores the token securely and opens the web application.
+
+If automatic detection fails, get the English edition's connection token from a second Terminal window in this project's directory:
 
 ```sh
 .venv/bin/lrc-selection --show-connection
 ```
 
-Incollalo nel dialogo di connessione del plugin. **Il token locale non è la chiave API OpenAI**: serve a collegare la web app e il plugin sul tuo computer. Non pubblicarlo o condividerlo.
+Paste it into the plugin's connection dialog. **This local token is not an OpenAI API key.** It connects the plugin and web application on your own computer. Keep it private.
 
-La guida completa è disponibile da **Libreria → Extra plug-in → Guida — da Lightroom alla selezione e ritorno**, dai pulsanti **Guida** del plugin e dalla web app. La guida Lightroom funziona anche quando il backend è spento.
+The step-by-step guide is available from the plugin's **Guide** menu item and buttons, and from the web app. The Lightroom guide also works while the backend is stopped. Menu labels in Lightroom itself depend on your installed Lightroom language.
 
-## Scegli come analizzare le foto
+## Choose an analysis path
 
-### Solo locale
+### Local only
 
-L’installazione di base permette di preparare i servizi, rivederli manualmente e usare il motore prudente basato sulle anteprime identiche. **Per interpretare le istruzioni libere localmente occorre installare e attivare il modello visivo.** Non viene scaricato quando importi le foto.
+The basic installation supports imports, manual review and a conservative engine that recognizes byte-identical derived previews. **Interpreting free-form instructions locally requires an explicitly installed vision model.** Importing photographs never downloads a model.
 
-Sul Mac Apple Silicon, dalla cartella del progetto:
+On an Apple Silicon Mac, run from the project directory:
 
 ```sh
 .venv/bin/python -m pip install -e '.[local-instructions]'
 .venv/bin/python scripts/setup_local_model.py --model Qwen3.5-9B-MLX-4bit --activate
 ```
 
-Il secondo comando è un **download esplicito di pesi da Hugging Face**, richiede diversi GB di spazio e non invia fotografie. Riavvia il backend dopo la configurazione. Il modello richiede memoria e risorse locali: non è garantita una velocità o una qualità uniforme su ogni Mac. La versione delle istruzioni locale e il nuovo raggruppamento sono verificati con casi sintetici; la qualità sul proprio tipo di servizio va valutata su un campione.
+The second command explicitly downloads model weights from Hugging Face. It requires several gigabytes of disk space and does not transmit photographs. Restart the backend afterwards. Performance depends on your Mac's memory and compute resources; photographic selection quality must be evaluated on your own authorized sample.
 
-Senza questo componente puoi usare la revisione manuale oppure il percorso diretto OpenAI. Dettagli, dipendenze e limiti dei modelli sono in [docs/models.md](docs/models.md).
+Without a local vision model, use manual review or **Directly OpenAI**. See [local model documentation](docs/models.md) for details and limitations.
 
-### Locale + OpenAI oppure direttamente OpenAI
+### Local + OpenAI or Directly OpenAI
 
-1. Nella web app apri **Impostazioni OpenAI → Configurazione OpenAI**.
-2. Inserisci la tua **chiave API OpenAI** e salva. Viene conservata dal backend nel portachiavi macOS, non nel repository né nell’archiviazione del browser.
-3. Premi **Verifica modelli disponibili** per aggiornare la lista del tuo account. Questa operazione non invia foto e non cambia automaticamente il modello selezionato.
-4. Scegli un modello compatibile e salva la configurazione. La lista distingue compatibilità verificata o dedotta dalla famiglia e prezzi disponibili o sconosciuti.
+1. Open **OpenAI settings → OpenAI configuration** in the web app.
+2. Enter and save your own OpenAI API key. The backend stores it in macOS Keychain, not in this repository or browser storage.
+3. Choose **Check available models** to refresh the list for your account. This does not send photographs or change the selected model automatically.
+4. Choose a compatible model and save. The interface distinguishes verified compatibility from compatibility inferred from a model family, and known from unknown prices.
 
-Con un prezzo disponibile, il riepilogo mostra stima, riserva prudenziale e limite applicativo dell’invio; un budget cumulativo per servizio è facoltativo. **Una stima non è un costo garantito.**
+When prices are available, the confirmation summary shows an estimate, a conservative reserve and an application-level limit for the send. A cumulative service budget is optional. **An estimate is not a guaranteed bill.**
 
-I modelli compatibili senza tariffa disponibile restano selezionabili: il riepilogo dice chiaramente **Costo non disponibile** e richiede una conferma dell’invio senza stima né limite monetario verificabile. Un prezzo sconosciuto non viene presentato come zero. Il budget salvato non può limitare chiamate il cui costo non è calcolabile.
+Models without known prices remain selectable. Their summary explicitly states that cost is unavailable and requires confirmation without an estimate or enforceable monetary limit. Unknown prices are not presented as zero; a saved budget cannot constrain calls whose cost cannot be calculated.
 
-Il saldo e la fatturazione dell’account OpenAI non vengono verificati dall’app. Non vengono acquistati crediti o attivate ricariche. Codex è lo strumento con cui è sviluppato il progetto: **non sostituisce la chiave API del tuo account**. Per il protocollo completo vedere [docs/openai.md](docs/openai.md).
+The application does not check your account balance, purchase credits or enable automatic top-ups. Codex was used to develop the project; its authentication does not replace your own OpenAI API key. See [OpenAI analysis](docs/openai.md).
 
-## Uso quotidiano: da Lightroom a Lightroom
+## Daily workflow: Lightroom → selection → Lightroom
 
-La barra **Configura → Analizza → Rivedi → Lightroom → Esito** indica il prossimo passo. Consultare una fase non avvia analisi o invii.
+The **Configure → Analyze → Review → Lightroom → Outcome** bar shows the next step. Viewing a step does not start an analysis, transmission or rating operation.
 
-1. **Prepara il servizio in Lightroom.** Seleziona le foto desiderate ed esegui **Libreria → Extra plug-in → Prepara servizio**. Scegli un nuovo servizio oppure aggiungi la selezione a uno esistente dello stesso catalogo. Attendi le anteprime: non vengono applicate stelle e non parte un’analisi.
-2. **Configura nella web app.** Scrivi cosa vuoi conservare o scegli un preset e modifica il testo. Scegli percorso e quantità. Per esempio, “Conserva uccelli, ritratti e paesaggi, privilegiando momenti e composizioni differenti”. Puoi anche chiedere una selezione generale senza nominare soggetti specifici.
-3. **Avvia l’analisi.** Nel percorso ibrido, dopo il locale puoi scegliere **Continua con OpenAI** oppure **Usa il risultato locale**. Il percorso diretto salta la selezione locale.
-4. **Conferma l’eventuale invio OpenAI.** Rivedi campione, modello, testo, quantità e costi. Il riepilogo indica **Varietà valutata su X foto delle Y importate**. Nessuna foto viene inviata prima che tu spunti la conferma e premi **Conferma e invia a OpenAI**. Si inviano anteprime JPEG e provini derivati, non RAW o cataloghi.
-5. **Rivedi la proposta.** Apri le anteprime in grande, confronta foto, usa **Includi/Escludi** e blocca le scelte da preservare. “Tutte le foto” permette di vedere anche quelle fuori dalla proposta. Gli incerti restano da rivedere. Conferma la selezione quando ti soddisfa: questa scelta non applica stelle.
-6. **Prepara le stelle nella web app.** Apri **Rivedi le stelle**, prepara l’anteprima e conferma l’elenco. Dieci candidate possono richiedere soltanto quattro nuove stelle, se le altre sono già valutate. Nessuna stella preesistente viene abbassata.
-7. **Applica da Lightroom.** In **Impostazioni catalogo → Metadati**, verifica che **Scrivi automaticamente le modifiche in file sidecar (XMP/ACR)** sia disattivato. Poi apri **Libreria → Extra plug-in → Applica stelle**, spunta l’attestazione di aver verificato XMP, controlla l’elenco e conferma. La casella nel plugin è un’attestazione: non cambia la preferenza di Lightroom.
-8. **Controlla l’esito.** La web app mostra la ricevuta del plugin: stelle applicate, operazioni saltate e casi da verificare. Un esito parziale non è un successo completo. **Mostra le candidate in Lightroom** ti aiuta a ritrovare l’intera selezione senza creare raccolte.
+1. **Prepare a service in Lightroom.** Select the photographs and choose **Library → Plug-in Extras → Prepare service**. Create a new service or add the selection to an existing service from the same catalog. Wait for the previews; this does not start analysis or apply stars.
+2. **Configure the web app.** Write your instructions or edit a preset, choose the path and set the quantities. For example: “Keep birds, portraits and landscapes, favoring different moments and compositions.” A general request for a varied selection is also valid.
+3. **Start analysis.** The hybrid path offers **Continue with OpenAI** or **Use the local result** after local analysis. The direct path skips local preselection.
+4. **Confirm any OpenAI send.** Review the sample, model, original text, quantity and cost information. The summary states how many of the imported photographs contribute to the variety assessment. Nothing is sent until you explicitly confirm. Only derived JPEG previews and contact sheets are sent, never RAW files or catalogs.
+5. **Review the proposal.** Enlarge or compare photographs and use **Include/Exclude**. **All photos** also shows items outside the proposal. Uncertain items remain available for review. Confirming the selection does not apply stars.
+6. **Preview stars in the web app.** Open the rating review, prepare the preview and confirm the exact list. Ten candidates may require only four new stars if the others already have ratings. Existing ratings are preserved.
+7. **Apply in Lightroom.** In **Catalog Settings → Metadata**, verify that **Automatically write changes into XMP** (wording may vary by Lightroom version) is disabled. Then choose **Library → Plug-in Extras → Apply stars**, check the separate XMP attestation, review the list and confirm. The plugin checkbox does not change Lightroom's preference.
+8. **Check the outcome.** The web app displays the plugin's receipt: applied, skipped and uncertain results. A partial outcome is not shown as complete success. **Show candidates in Lightroom** helps you locate the whole selection without creating a collection.
 
-Le situazioni e i gruppi sono valutazioni dei modelli, non identità o equivalenze certificate. La quantità è un obiettivo morbido: copertura, incerti e decisioni manuali possono richiedere più foto, mentre richieste senza corrispondenze o esclusioni manuali possono renderla irraggiungibile. La selezione non viene riempita nascondendo questa condizione.
+Groups remain provisional visual interpretations, not certified identities or equivalence claims. Manual decisions always prevail. Insufficient matching photographs or manual exclusions may make the target impossible; the application reports this instead of silently filling it with unsuitable photographs.
 
-## Se qualcosa si interrompe
+## Troubleshooting
 
-| Situazione | Cosa fare |
+| Situation | Next step |
 | --- | --- |
-| La pagina locale non si apre | Avvia `scripts/start.command`, lascia aperto Terminale e controlla l’indirizzo `127.0.0.1:8765`. |
-| Il plugin non si collega | Avvia prima il backend; ripeti **Configura connessione locale** e, se serve, usa `--show-connection`. Non inserire qui la chiave OpenAI. |
-| Le istruzioni locali non sono disponibili | Installa e attiva esplicitamente il modello locale, poi riavvia il backend; oppure scegli **Direttamente OpenAI**. |
-| L’analisi API si interrompe | Usa **Prepara la ripresa** o l’azione di nuova stima indicata. Controlla valutazioni nuove e in cache prima di confermare. Le valutazioni valide si riutilizzano solo se campione, istruzioni, modello e formato sono compatibili. |
-| Una richiesta ha esito o costo incerto | Non viene considerata gratuita. Controlla il registro richieste e la fatturazione OpenAI prima di autorizzare altri invii. |
-| La conferma è disabilitata | Leggi il motivo vicino al controllo: possono mancare foto selezionate, criteri salvati o budget sufficiente per la riserva. |
-| La proposta è vuota | Nessuna foto viene inclusa automaticamente: rivedi i criteri oppure includi le foto manualmente. Tutti i file restano disponibili. |
-| Lightroom blocca le stelle per XMP | Verifica la preferenza nel catalogo e spunta separatamente l’attestazione nel dialogo del plugin. Il plugin non modifica questa preferenza. |
-| Alcune stelle vengono saltate | Controlla la ricevuta. Valutazioni o modifiche manuali intervenute dopo l’importazione non vengono sovrascritte. |
+| The local page does not open | Start `scripts/start.command`, leave its Terminal open and use port **8766** for this edition. |
+| The plugin cannot connect | Start the English backend, configure the English plugin, and use this edition's `--show-connection` token if needed. Do not paste an OpenAI key here. |
+| Local instructions are unavailable | Explicitly install and activate the local model, then restart the backend; or use Directly OpenAI. |
+| An API analysis stops | Prepare a resume/new estimate and review new versus cached evaluations before confirming again. Cache reuse requires compatible images, instructions, model and format. |
+| A request's outcome or cost is uncertain | It is not treated as free. Check the request log and OpenAI billing before authorizing another send. |
+| Confirmation is disabled | Read the explanation beside the control: selected previews, saved settings or sufficient known-price reserve may be missing. |
+| The proposal is empty | Review the instructions or include photographs manually. All files remain available. |
+| XMP blocks rating application | Check Lightroom's catalog preference and separately attest to that check in the plugin dialog. |
+| Some ratings are skipped | Read the receipt. Existing ratings and later manual changes are protected. |
 
-Annulla/ripristina riguarda le decisioni della web app: non ritira richieste API già inviate e non annulla le stelle già applicate in Lightroom.
+Undo/redo affects web-app decisions. It does not withdraw API requests already sent or undo stars already applied in Lightroom.
 
-## Aggiornare e riaprire il progetto
+## Updating
 
-Ferma il backend con **Ctrl+C**. Se hai usato Git, esegui `git pull` dalla cartella del progetto; se hai scaricato lo ZIP, usa una nuova copia del progetto e aggiungi nuovamente il relativo plugin da Gestione plug-in. Poi esegui `scripts/install.command` per aggiornare dipendenze e interfaccia e riavvia `scripts/start.command`.
+Stop the backend with **Ctrl+C**. For a Git installation, run `git pull`. For a ZIP installation, extract a fresh copy and add its `.lrplugin` folder in Plug-in Manager. Run `scripts/install.command` again and restart `scripts/start.command`.
 
-Dopo modifiche al codice Lua, in **File → Gestione plug-in** seleziona il plugin e usa **Ricarica plug-in / Reload Plug-in**. Se la tua versione non mostra questo comando, rimuovi la registrazione del plugin e aggiungi di nuovo la cartella `.lrplugin`. Ricaricare la pagina web non ricarica il codice del plugin Lightroom.
+After Lua changes, reload the plugin in Plug-in Manager. If your version has no reload control, remove its registration and add the folder again; if necessary restart Lightroom with your chosen catalog. Refreshing the browser does not reload Lightroom's Lua code.
 
-Servizi, anteprime, cache, piani e ricevute si trovano in **`~/Library/Application Support/LrC Photo Selection/`**, fuori dal repository. L’aggiornamento del codice non richiede di cancellare questa cartella. Non pubblicarla: può contenere fotografie e dati personali. Le chiavi e i token vanno mantenuti privati.
+This edition stores services, previews, cache, plans and receipts under **`~/Library/Application Support/LrC Photo Selection EN/`**. Updating code does not require deleting this directory. Do not publish it: it can contain photographs and personal information. The [Italian edition](https://github.com/ericcatta/lrc-photo-selection) has its own storage, port and plugin identity.
 
-## Verifiche e sviluppo
+## Tests and limitations
 
-Il percorso Lightroom → web app → Lightroom è stato provato manualmente su un campione autorizzato, inclusa l’applicazione delle stelle. I controlli automatici usano dati sintetici e simulazioni SDK/API. La nuova distribuzione tra situazioni distinte è coperta da test sintetici; non va confusa con una valutazione estesa della qualità fotografica su servizi reali.
-
-Per preparare l’ambiente di test:
+The original edition's Lightroom → web → Lightroom path was manually tested on an authorized sample, including stars. Automated checks use synthetic photographs and simulated SDK/API responses. The new grouping policy and English translation require manual acceptance on your own sample; they are not evidence of universal photographic accuracy.
 
 ```sh
 .venv/bin/python -m pip install -e '.[dev]'
@@ -183,6 +186,4 @@ npm --prefix web test -- --run
 npm --prefix web run build
 ```
 
-Su macOS il test Apple Vision richiede il relativo helper compilato. Le prove browser `node scripts/browser_smoke.mjs` e `node scripts/api_browser_smoke.mjs` richiedono Google Chrome e la build web; avviano backend isolati, usano dati sintetici e non aprono Lightroom né chiamano l’API reale.
-
-Approfondimenti: [requisiti](docs/requirements.md), [modelli locali](docs/models.md), [architettura](docs/architecture.md), [analisi OpenAI](docs/openai.md), [guida plugin](docs/plugin-guide.md), [protocollo](shared/README.md) e [risultati delle verifiche](docs/validation.md).
+The optional Apple Vision test needs the compiled helper on macOS. Browser smoke scripts require Google Chrome and built assets; they start isolated synthetic backends without opening Lightroom or using the real OpenAI API. See [validation](docs/validation.md), [requirements](docs/requirements.md), [architecture](docs/architecture.md), [models](docs/models.md), [plugin guide](docs/plugin-guide.md), and [exchange protocol](shared/README.md).

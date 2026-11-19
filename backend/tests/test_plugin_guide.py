@@ -48,6 +48,20 @@ def test_guide_runs_offline_with_only_sdk_view_and_context():
     ''')
     lua.globals().package.loaded.Guide = lua.execute((PLUGIN / 'Guide.lua').read_text())
     lua.execute((PLUGIN / 'GuideMenu.lua').read_text())
-    assert lua.globals().test.dialog.title == 'Da Lightroom alla selezione e ritorno'
-    assert lua.globals().test.dialog.actionVerb == 'Chiudi guida'
+    assert lua.globals().test.dialog.title == 'From Lightroom to selection and back'
+    assert lua.globals().test.dialog.actionVerb == 'Close guide'
     assert lua.globals().test.dialog.contents[1][1].title
+
+
+def test_english_plugin_uses_isolated_identity_storage_and_connection():
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    info = lua.execute((PLUGIN / 'Info.lua').read_text())
+    assert info.LrToolkitIdentifier == 'com.ericcatta.lrc-photo-selection-en'
+    assert info.LrPluginName == 'Photo Selection (English)'
+    common = (PLUGIN / 'Common.lua').read_text()
+    assert "'lrc-photo-selection-plugin-en'" in common
+    assert "'loopback-token-en'" in common
+    assert "'http://127.0.0.1:8766'" in common
+    configure = (PLUGIN / 'Configure.lua').read_text()
+    assert "'LrC Photo Selection EN'" in configure
+    assert "'LrC Photo Selection'" not in configure

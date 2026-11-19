@@ -14,7 +14,7 @@ def test_lua51_syntax_and_json_timestamp_precision():
     codec = runtime.execute((PLUGIN / 'JSON.lua').read_text())
     value = 798123456.1234567
     assert codec.decode(codec.encode(value)) == value
-    assert codec.decode(codec.encode('Matrimonio — à')) == 'Matrimonio — à'
+    assert codec.decode(codec.encode('Wedding — café')) == 'Wedding — café'
 
 
 def simulate(current=0, edited=100, xmp=True, target=1, previous=False, fail_journal=False, cancel=False, claim=True, cancel_inside_gate=False, receipt_during_gate=False):
@@ -91,7 +91,7 @@ def simulate(current=0, edited=100, xmp=True, target=1, previous=False, fail_jou
         LrView={osFactory=function() return view end, bind=function(value) return value end},
         LrDialogs={
           presentModalDialog=function(dialog)
-            if dialog.title == 'Conferma applicazione stelle' then
+            if dialog.title == 'Confirm star application' then
               props.xmpChecked=options.xmp
               test.operations = props.operations
               test.xmpBinding = dialog.actionBinding.enabled.key
@@ -285,7 +285,7 @@ def test_local_connection_discovery_still_requires_dialog_confirmation(accept):
             LrPathUtils={getStandardFilePath=function(kind) assert(kind=='home');return '/synthetic/home' end,
                          child=function(parent,child) return parent .. '/' .. child end},
             LrFileUtils={exists=function(path)
-                assert(path=='/synthetic/home/Library/Application Support/LrC Photo Selection/connection-token');return 'file'
+                assert(path=='/synthetic/home/Library/Application Support/LrC Photo Selection EN/connection-token');return 'file'
             end,readFile=function() return token .. '\n' end},
             LrDialogs={presentModalDialog=function()
                 assert(props.token==token)
@@ -315,13 +315,13 @@ def test_xmp_gate_is_bound_and_defensive_without_lua_error():
     assert result.writes == 0 and not result.claimed
     assert result.error is None
     assert result.xmpBinding == 'xmpChecked'
-    assert result.messageTitle == 'Verifica XMP necessaria'
+    assert result.messageTitle == 'XMP check required'
 
 
 def test_completion_distinguishes_partial_and_points_to_next_step():
     complete = simulate()
-    assert complete.messageTitle == 'Applicazione completata'
-    assert 'Mostra le candidate in Lightroom' in complete.message
+    assert complete.messageTitle == 'Application completed'
+    assert 'Show candidates in Lightroom' in complete.message
     partial = simulate(current=3)
-    assert partial.messageTitle == 'Applicazione da verificare'
-    assert '1 da verificare' in partial.message
+    assert partial.messageTitle == 'Application needs review'
+    assert '1 to review' in partial.message

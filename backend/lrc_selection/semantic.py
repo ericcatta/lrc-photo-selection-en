@@ -16,7 +16,7 @@ RELEVANCE_WEIGHT = 1.
 def _normalized(values):
     vector = np.asarray(values, dtype=np.float32)
     if vector.ndim != 1 or not np.isfinite(vector).all() or np.linalg.norm(vector) <= 0:
-        raise ValueError('Embedding semantico non valido')
+        raise ValueError('Invalid semantic embedding')
     return vector / np.linalg.norm(vector)
 
 
@@ -32,13 +32,13 @@ def build_semantic_proposal(store, snapshot, encoder, progress=None):
     for index, photo in enumerate(photos):
         pid = photo['id']
         if not photo.get('preview_ready'):
-            records[pid] = {'error': 'Anteprima mancante'}
+            records[pid] = {'error': 'Missing preview'}
         else:
             path = store.preview_path(snapshot['id'], pid)
             raw = path.read_bytes()
             digest = hashlib.sha256(raw).hexdigest()
             if digest != photo['preview_sha256']:
-                raise ValueError('Anteprima cambiata: reimportare prima di analizzare')
+                raise ValueError('Preview changed: import again before analysis')
             embedding = cache.get_or_compute(digest, 'embedding', encoder.identity, lambda: encoder.encode(path))
             vectors[pid] = _normalized(embedding)
             records[pid] = {'preview_sha256': digest, 'embedding': vectors[pid].tolist(), 'visual_signature': visual_signature(raw)}
@@ -55,10 +55,10 @@ def build_semantic_proposal(store, snapshot, encoder, progress=None):
         text = _normalized(cache.get_or_compute(key, 'subject-text', encoder.identity, lambda: encoder.encode_text(query)))
         for pid, vector in vectors.items():
             if vector.shape != text.shape:
-                raise ValueError('Dimensioni degli embedding incompatibili')
+                raise ValueError('Incompatible embedding dimensions')
             scores[pid] = float(np.clip(np.dot(vector, text), -1, 1))
     if vectors and len({v.shape for v in vectors.values()}) != 1:
-        raise ValueError('Dimensioni degli embedding incompatibili')
+        raise ValueError('Incompatible embedding dimensions')
 
     target = snapshot['settings']['target']
     remaining = [pid for pid in eligible if pid in vectors and pid not in shortlist]
@@ -73,26 +73,26 @@ def build_semantic_proposal(store, snapshot, encoder, progress=None):
     review_ids = [pid for pid in eligible if pid not in vectors]
     shortlist.extend(pid for pid in review_ids if pid not in shortlist)
 
-    warnings = ['Proposta da rivedere: somiglianza visiva e pertinenza al soggetto non dimostrano equivalenza, identità o copertura delle situazioni.']
+    warnings = ['Review this proposal: visual similarity and subject relevance do not establish equivalence, identity or coverage of situations.']
     if len(forced) > target:
-        warnings.append('Le decisioni manuali richiedono più immagini della quantità indicata: tutte conservate.')
+        warnings.append('Manual decisions require more images than the requested quantity: all retained.')
     elif len(shortlist) < target:
-        warnings.append('Quantità non raggiunta: alternative/esclusioni manuali o anteprime mancanti limitano la proposta.')
+        warnings.append('Target not reached: manual alternatives/exclusions or missing previews limit the proposal.')
     if any('error' in record for record in records.values()):
-        warnings.append('Anteprime mancanti: le immagini restano candidate e richiedono revisione manuale.')
+        warnings.append('Missing previews: images remain candidates and require manual review.')
     reasons = {}
     for pid in shortlist:
         if pid in review_ids:
-            reasons[pid] = 'Anteprima mancante o non valutabile: conservata da rivedere, nessuna esclusione automatica.'
+            reasons[pid] = 'Missing or unassessable preview: retained for review, without automatic exclusion.'
         elif decisions.get(pid, {}).get('state') in SELECTED:
-            reasons[pid] = 'Inclusa per decisione manuale, preservata durante l’analisi.'
+            reasons[pid] = 'Included by a manual decision, preserved during analysis.'
         elif query:
-            reasons[pid] = f'Pertinenza visiva al soggetto «{query}» (coseno {scores[pid]:.3f}); diversità visiva considerata nella proposta.'
+            reasons[pid] = f'Visual relevance to the subject “{query}” (cosine {scores[pid]:.3f}); visual diversity considered in the proposal.'
         else:
-            reasons[pid] = 'Inclusa nella proposta per distribuire la diversità degli embedding visivi; situazione reale non identificata.'
+            reasons[pid] = 'Included to distribute visual embedding diversity across the proposal; the actual situation was not identified.'
     for pid in vectors:
         if pid not in shortlist and pid in eligible:
-            reasons[pid] = 'Alternativa dello stesso gruppo visivo: disponibile dopo le rappresentanti degli altri gruppi.'
+            reasons[pid] = 'Alternative in the same visual group: available after representatives of other groups.'
     warnings.extend(balanced['warnings'])
     warning = warnings[0]
     return {
@@ -136,7 +136,7 @@ def rerank_instruction_shortlist(result, snapshot, store, encoder):
         raw = path.read_bytes()
         digest = hashlib.sha256(raw).hexdigest()
         if digest != photo['preview_sha256']:
-            raise ValueError('Anteprima cambiata: reimportare prima di analizzare')
+            raise ValueError('Preview changed: import again before analysis')
         vector = _normalized(cache.get_or_compute(digest, 'embedding', encoder.identity,
                                                   lambda: encoder.encode(path)))
         vectors[pid] = vector
@@ -144,11 +144,11 @@ def rerank_instruction_shortlist(result, snapshot, store, encoder):
         records.setdefault(pid, {'preview_sha256': digest})['embedding'] = vector.tolist()
         records[pid]['visual_signature'] = visual_signature(raw)
     if vectors and len({v.shape for v in vectors.values()}) != 1:
-        raise ValueError('Dimensioni degli embedding incompatibili')
+        raise ValueError('Incompatible embedding dimensions')
     for pid in matches:
         preference = assessments[pid].get('preference_score', .5)
         if not isinstance(preference, (int, float)) or not np.isfinite(preference) or not 0 <= preference <= 1:
-            raise ValueError('Punteggio di preferenza non valido')
+            raise ValueError('Invalid preference score')
     ordered = sorted((pid for pid in matches if pid in vectors),
                      key=lambda pid: -assessments[pid].get('preference_score', .5))
     selected = forced + ordered
@@ -173,25 +173,25 @@ def rerank_instruction_shortlist(result, snapshot, store, encoder):
     reasons = {}
     for pid in dict.fromkeys(selected + matches):
         if pid not in selected:
-            reasons[pid] = assessments[pid]['reason'] + ' Alternativa dello stesso gruppo: priorità alle rappresentanti degli altri gruppi prima delle varianti aggiuntive.'
+            reasons[pid] = assessments[pid]['reason'] + ' Alternative in the same group: representatives of other groups take priority over additional variations.'
         elif pid in local_review:
-            reasons[pid] = result.get('shortlist_reasons', {}).get(pid, 'Da rivedere, conservata per prudenza: ' + assessments.get(pid, {}).get('reason', 'Valutazione non disponibile.'))
+            reasons[pid] = result.get('shortlist_reasons', {}).get(pid, 'Requires review, retained as a precaution: ' + assessments.get(pid, {}).get('reason', 'Assessment unavailable.'))
         elif pid in forced:
-            reasons[pid] = 'Decisione manuale preservata.'
+            reasons[pid] = 'Manual decision preserved.'
         else:
-            reasons[pid] = assessments[pid]['reason'] + ' Diversità visiva considerata nella proposta (confronto di embedding, equivalenza non dimostrata).'
+            reasons[pid] = assessments[pid]['reason'] + ' Visual diversity considered in the proposal (embedding comparison, equivalence not established).'
     updated['shortlist_reasons'] = reasons
     updated['diversity_model'] = encoder.identity
     updated['ranking_evidence'] = ranking_evidence
     updated.setdefault('method', {}).update(
         ranking=SELECTION_POLICY, grouping=GROUPING_POLICY,
         preference_weight=1., novelty_weight=0., calibrated=False)
-    updated['warnings'] = [w for w in updated.get('warnings', []) if not w.startswith('Diversità visiva stimata dagli embedding con pesi sperimentali')]
-    warning = 'Prima una rappresentante per ogni gruppo visivo distinto, poi varianti aggiuntive a turni bilanciati; preferenze e merito fotografico ordinano le immagini nello stesso gruppo. Gruppi da verificare, nessuna identità o copertura certificata.'
+    updated['warnings'] = [w for w in updated.get('warnings', []) if not w.startswith('Visual diversity estimated from embeddings using experimental weights')]
+    warning = 'First one representative from every distinct visual group, then additional variations in balanced rounds; preferences and photographic merit rank images within each group. Groups require review; identity and coverage are not certified.'
     if warning not in updated.setdefault('warnings', []):
         updated['warnings'].append(warning)
     if any(pid not in vectors for pid in matches):
-        updated['warnings'].append('Corrispondenze senza anteprima disponibili: da rivedere, non aggiunte automaticamente alla proposta.')
+        updated['warnings'].append('Matches without available previews require review and were not added automatically to the proposal.')
     return updated
 
 
@@ -233,7 +233,7 @@ def retain_local_review_candidates(shortlist, snapshot, assessments):
     selected.extend(pid for pid in review_ids if pid not in selected)
     warnings = []
     if review_ids:
-        warnings.append(f'{len(review_ids)} immagini incerte o non valutabili conservate nella proposta come da rivedere; non sono corrispondenze confermate.')
+        warnings.append(f'{len(review_ids)} uncertain or unassessable images retained in the proposal for review; these are not confirmed matches.')
         if len(selected) > snapshot['settings']['target']:
-            warnings.append('Quantità indicativa superata per conservare tutte le immagini da rivedere, oltre alle candidate confermate.')
+            warnings.append('Indicative quantity exceeded to retain all images requiring review in addition to confirmed candidates.')
     return {'shortlist': selected, 'review_ids': review_ids, 'warnings': warnings}

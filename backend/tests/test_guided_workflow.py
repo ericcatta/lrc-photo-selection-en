@@ -78,7 +78,7 @@ def test_resume_reuses_exact_sample_even_after_new_estimate(client):
         changed['settings']['instructions'] += 'changed'
         store.put(db, changed)
     resume = client.get('/api/services/test-service/api-status').json()['resume']
-    assert not resume['compatible'] and 'criteri' in resume['reason']
+    assert not resume['compatible'] and 'Criteria' in resume['reason']
 
 
 def test_effective_shortlist_preserves_manual_inclusions_and_exclusions(client):

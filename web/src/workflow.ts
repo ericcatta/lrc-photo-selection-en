@@ -1,6 +1,6 @@
 import type {Service} from './api';
 export type WorkflowPhase='configure'|'analyze'|'review'|'lightroom'|'outcome';
-export const workflowSteps:{id:WorkflowPhase;label:string}[]=[{id:'configure',label:'Configura'},{id:'analyze',label:'Analizza'},{id:'review',label:'Rivedi'},{id:'lightroom',label:'Lightroom'},{id:'outcome',label:'Esito'}];
+export const workflowSteps:{id:WorkflowPhase;label:string}[]=[{id:'configure',label:'Configure'},{id:'analyze',label:'Analyse'},{id:'review',label:'Review'},{id:'lightroom',label:'Lightroom'},{id:'outcome',label:'Outcome'}];
 export function workflowPhase(service:Service):WorkflowPhase {
   if(service.workflow)return service.workflow.phase;
   if(service.confirmed_batch_id||service.status==='applying')return 'lightroom';

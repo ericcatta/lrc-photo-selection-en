@@ -10,7 +10,7 @@ export type Service = Omit<Summary,'photo_count'> & { catalog_id:string; workflo
 export type Plan = {batch_id:string;service_id:string;catalog_id:string;revision:number;warnings:string[];items:{photo_id:string;filename?:string;uuid:string;local_id:number;expected_rating:number;expected_edit_time:number|null;target_rating:1}[]};
 export class ApiError extends Error {
   constructor(public status:number, public detail:unknown) {
-    super(typeof detail==='string'?detail:(detail as {message?:string}|null)?.message??'La richiesta non è stata completata.');
+    super(typeof detail==='string'?detail:(detail as {message?:string}|null)?.message??'The request could not be completed.');
   }
 }
 export async function api<T>(path:string, method='GET', body?:unknown):Promise<T> {

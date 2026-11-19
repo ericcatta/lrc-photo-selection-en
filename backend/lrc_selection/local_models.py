@@ -47,19 +47,19 @@ def resolve_model(data_dir: Path) -> Path | None:
             try:
                 value = json.loads(selection.read_text())
                 if value.get('schema_version') != 1 or value.get('model') not in MODELS:
-                    raise ValueError('Selezione del modello locale non supportata')
+                    raise ValueError('Unsupported local model selection')
                 model = value['model']
             except (OSError, ValueError, TypeError, AttributeError) as exc:
-                raise ValueError('Configurazione del modello locale non valida') from exc
+                raise ValueError('Invalid local model configuration') from exc
         path = data_dir / 'models' / model
     return path if model_ready(path) else None
 
 
 def activate_model(data_dir: Path, model: str) -> None:
     if model not in MODELS:
-        raise ValueError('Modello locale non supportato')
+        raise ValueError('Unsupported local model')
     if not model_ready(data_dir / 'models' / model):
-        raise ValueError('Configurazione o pesi del modello locale mancanti o incompleti')
+        raise ValueError('Local model configuration or weights missing or incomplete')
     data_dir.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:

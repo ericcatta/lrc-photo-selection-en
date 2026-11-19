@@ -30,3 +30,7 @@ data/
 artifacts/
 coverage/
 .build/
+
+# Local test dependency symlinks
+/web/node_modules
+/.venv

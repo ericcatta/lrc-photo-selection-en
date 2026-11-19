@@ -28,7 +28,7 @@ def build_fixture(root):
         service['settings'].update(mode='hybrid', instructions=ORIGINAL, service_criteria=[], target=1)
         service['proposal'] = analyze(service)
         service['proposal']['shortlist'] = ['synthetic-0', 'synthetic-1']
-        service['proposal']['shortlist_reasons'] = {pid: 'Proposta simulata per test' for pid in service['proposal']['shortlist']}
+        service['proposal']['shortlist_reasons'] = {pid: 'Simulated proposal for testing' for pid in service['proposal']['shortlist']}
         store.put(db, service)
     calls = []
 
@@ -42,15 +42,15 @@ def build_fixture(root):
         calls.append({'original_text_preserved': True})
         time.sleep(.15)
         if kind=='requested_categories':
-            assessment={'requested_categories':[{'id':'forms','description':'Forme sintetiche blu'}],'ambiguities':[],'unsupported':[]}
+            assessment={'requested_categories':[{'id':'forms','description':'Synthetic blue shapes'}],'ambiguities':[],'unsupported':[]}
         elif kind=='collection_ranking':
-            marker='\nValutazioni di TUTTE le anteprime, indici dei provini: '
+            marker='\nAssessments of ALL previews, contact-sheet indices: '
             records=json.loads(payload['input'][0]['content'][0]['text'].split(marker,1)[1])
             matched=[record['index'] for record in records if record['assessment']['match']=='yes']
-            assessment={'ranking':matched,'groups':[{'members':matched,'reason':'Situazione sintetica ripetuta'}] if matched else [],'warnings':[]}
+            assessment={'ranking':matched,'groups':[{'members':matched,'reason':'Repeated synthetic situation'}] if matched else [],'warnings':[]}
         else:
             assert kind=='photo_assessment'
-            assessment={'match':'yes','reason':'Forma blu sintetica verificata dalla simulazione.','scene':'Scena sintetica','quality_issues':[],'preference_score':.8,'category_matches':{'forms':'yes'}}
+            assessment={'match':'yes','reason':'Synthetic blue shape verified by simulation.','scene':'Synthetic scene','quality_issues':[],'preference_score':.8,'category_matches':{'forms':'yes'}}
         return {'id': 'resp_synthetic_' + str(len(calls)), 'model': MODEL, 'status': 'completed',
                 'usage': {'input_tokens': 220, 'output_tokens': 65},
                 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': json.dumps(assessment)}]}]}

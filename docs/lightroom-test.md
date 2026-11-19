@@ -1,38 +1,60 @@
-# Prova in Lightroom Classic
+# Lightroom Classic manual test
 
-Il campione iniziale era il catalogo vecchio JPEG. Il 18 novembre 2026 il proprietario ha aperto personalmente `catalogo-di-prova.lrcat` e autorizzato la cartella cartella del campione autorizzato (161 foto totali, 160 visibili al momento della selezione). Il catalogo principale non autorizzato è escluso da queste prove. Il plugin non impone blocchi per nome o anno del catalogo.
+Use only a catalog and small sample explicitly authorized by the owner. Open the
+chosen test catalog directly; do not launch Lightroom on an unknown last-used
+catalog. The English edition must not use the Italian edition’s storage or tokens.
+The plugin does not impose catalog-name or year restrictions in the product.
 
-1. Aprire soltanto il catalogo di prova concordato. In **File → Gestione plug-in**, aggiungere `plugin/lrc-photo-selection.lrplugin`.
-2. Avviare il backend locale; in **Libreria → Extra plug-in → Configura connessione locale** inserire il token locale.
-3. Selezionare un piccolo campione concordato e usare **Prepara servizio**. Confrontare anteprime e identificativi, includendo una copia virtuale se disponibile. Senza originali online, la disponibilità dipende dalle anteprime restituite da Lightroom. Non cercare o ricollegare originali. Un’importazione sospesa si riprende mantenendo la stessa selezione.
-4. Annotare rating, sviluppo, flag e raccolte iniziali; quando disponibili nel campione autorizzato, rilevare checksum di originali e sidecar. Nella web app provare selezione, confronto, esclusione e blocco; preparare e confermare l’elenco esatto del piano stelle.
-5. In **Impostazioni catalogo → Metadati** controllare **Scrivi automaticamente modifiche in XMP**. Provare prima annullamento e conferma XMP non selezionata: nessuna stella deve cambiare. Per la prova positiva l’impostazione deve essere disabilitata; il plugin non la modifica. Se attiva e non autorizzata la modifica manuale, interrompere il test di scrittura.
-6. **Applica stelle** mostra catalogo, servizio, identificativo del piano e lista esatta delle modifiche. Confrontare gli esiti: solo i passaggi autorizzati da 0 a 1 sono ammessi. Foto escluse, già valutate o modificate dopo l’importazione devono restare invariate. Sviluppo, flag e raccolte devono coincidere col baseline.
-7. Ripetere l’operazione e verificare l’assenza di nuove modifiche. Modificare manualmente un rating già applicato e verificare che una nuova importazione della stessa foto lo preservi. Il servizio non è applicabile a un altro catalogo.
+1. In **File → Plug-in Manager**, add `plugin/lrc-photo-selection.lrplugin`.
+   Confirm that **Photo Selection (English)** is selected. Reload it after code changes.
+2. Start the English local backend on port **8766**. In **Library → Plug-in Extras →
+   Configure local connection**, confirm the token from the English backend data folder.
+3. Select the agreed sample and use **Prepare service**. Compare preview counts and
+   identifiers, including a virtual copy when available. If originals are offline,
+   preview availability depends on the SDK thumbnail response; do not locate or
+   reconnect originals. Resume an interrupted import using the same selection.
+4. Record the initial ratings, develop settings, flags and collections. When
+   authorized and available, record checksums of originals and sidecars. In the web
+   app, test review, comparison, include/exclude, locking, and the exact star plan.
+5. In **Catalog Settings → Metadata**, verify that **Automatically write changes
+   into XMP** is unchecked. First cancel and test an unchecked plugin confirmation:
+   no rating must change. The plugin never changes this preference. Do not run a
+   write test while automatic writing is enabled or its state is unverified.
+6. **Apply stars** must show the catalog, service, plan identifier and exact changes.
+   Only explicitly authorized changes from zero to one star are allowed. Excluded,
+   already rated or subsequently edited photos must remain unchanged. Develop
+   settings, flags, labels, keywords and collections must match the baseline.
+7. Repeat the operation and verify that no new changes occur. Manually change a
+   rating after an application, then reimport the same photo and verify that the
+   later manual rating is preserved. A service must not apply to another catalog.
+8. Check **Outcome** in the web app. Partial outcomes must show skipped, conflicting
+   and uncertain results separately. Use **Show candidates in Lightroom** to select
+   the exact candidate identifiers without writing metadata or creating collections.
 
-Il journal locale è scritto prima della mutazione SDK e protegge i tentativi interrotti. In caso di esito incerto controllare il rating nel catalogo: non viene riapplicato automaticamente. Ripetere **Applica stelle** per inviare una ricevuta rimasta in sospeso.
+The local journal is written before each SDK rating change. After an uncertain
+outcome, check the catalog rating; the plugin does not reapply automatically.
+Running **Apply stars** again can submit an interrupted receipt.
 
-## Stato della verifica
-Il controllo grafico del Mac ha restituito `cgWindowNotFound`, impedendo il doppio clic richiesto. Lightroom non è stato aperto dall’agente. Nessun catalogo è stato letto direttamente e nessuna valutazione reale è stata applicata. I test Lua con SDK simulato non sostituiscono questa prova.
+## Additional cases
 
-## Casi aggiunti dopo audit
+- Add photos to an existing service, including existing identifiers and duplicate
+  file names. Only new previews should upload; existing baselines and decisions
+  remain unchanged. Test interruption and resumption with the same selection.
+- Prepare two plans, confirm one, then interrupt application. Resumption must use
+  the active plan. Cancellation while waiting for catalog write access must prevent
+  a rating change for a photo that has not started.
+- Hide candidates with a source or filter and run **Show candidates in Lightroom**.
+  The plugin must report a partial selection rather than silently claim success.
+- Verify that the Guide menu and Guide buttons work with the backend stopped.
+- Confirm that the Italian plugin, its token and runtime data remain untouched.
 
-- Aggiungere altre foto allo stesso servizio, comprese foto già importate e nomi duplicati. Verificare solo nuove anteprime, stesso target e decisioni intatte; provare interruzione e ripresa della stessa selezione.
-- Preparare due piani, confermarne uno e interrompere l’applicazione: la ripresa deve recuperare quello attivo. Annullare durante l’attesa di accesso al catalogo e verificare nessun rating per la foto non ancora iniziata.
-- “Mostra le candidate” deve selezionare gli identificativi corretti senza scrivere metadati o raccolte. Con filtri o sorgenti che nascondono candidate deve segnalare la selezione parziale.
-- La raccolta locale facoltativa non è implementata: prima servirà verificare sul vero SDK che la creazione non abiliti sincronizzazione.
-- Il controllo grafico è stato ritentato dopo l’audit: Finder continua a rispondere `cgWindowNotFound`. Nessun catalogo aperto e nessuna prova reale dichiarata completata.
+## Validation status
 
-## Collaudo reale del 18 novembre 2026 — in corso
+Automated tests use synthetic fixtures and simulated official SDK interfaces.
+They do not access Lightroom catalogs. The English edition still requires its own
+manual native-dialog and end-to-end test on an explicitly authorized sample.
 
-Plugin installato e attivo; collegamento al backend locale confermato dal proprietario con apertura della web app. Il token locale viene individuato dal plugin e salvato nel portachiavi solo dopo conferma.
-
-Il primo comando Prepara servizio si è fermato nella registrazione locale: `os.rename` non è disponibile nel runtime SDK. Corretto usando `LrFileUtils.move`, con file pending/previous e recupero dello stato precedentemente confermato. Il solo temporaneo di registrazione prodotto dal tentativo fallito è stato validato per il catalogo autorizzato e recuperato; nessun file del catalogo o fotografia è stato modificato. Plugin ricaricato dalla Gestione plug-in.
-
-Verifica automatica: 63 test backend passati nella sandbox; il test Apple Vision su immagine sintetica fallisce nella sandbox ma passa separatamente fuori dalla sandbox (64 casi complessivi). Comprende simulazioni di guasti dello storage eseguendo Common.lua reale con `os.rename` assente.
-
-Importazione reale ancora da riprovare: il controllo grafico restituisce timeout durante la chiusura della Gestione plug-in. Nessuna stella applicata; stato XMP non ancora verificato, ritorno delle stelle non collaudato.
-
-### Importazione ricevuta
-
-Il secondo tentativo ha trasferito 160/160 anteprime con 160 identificativi distinti, ma il completamento ha restituito 422: il plugin inviava `{}` mentre il backend richiede `null` per un nuovo servizio. Corretto Prepare.lua e aggiunto test che esegue Lua reale e verifica il payload contro FastAPI. Il servizio «Servizio di prova» è stato completato tramite API locale ed è `ready`; questa ripresa manuale non certifica ancora il completamento end-to-end dal plugin corretto. Nessuna decisione manuale o stella applicata. La cartella indicava 161 foto totali, ma la selezione autorizzata e trasmessa conteneva 160 foto visibili.
+Upstream issues covered by regression tests include unavailable `os.rename` in the
+Adobe runtime, interrupted state writes, and the required JSON `null` completion
+payload for a new import. State persistence uses `LrFileUtils.move` and preserves
+pending/previous copies; it never reads or writes the Lightroom catalog database.

@@ -71,10 +71,10 @@ def group_visual_neighbors(ordered_ids, signatures, vectors=None):
         group = next((g for g in groups if all(near(pid, other) for other in g['members'])), None)
         if group is None:
             groups.append({'id': 'visual-' + str(len(groups)), 'members': [pid],
-                           'reason': 'Gruppo visivo distinto o equivalenza non dimostrata.'})
+                           'reason': 'Distinct visual group or equivalence not established.'})
         else:
             group['members'].append(pid)
-            group['reason'] = 'Anteprime molto simili per inquadratura, struttura e colore; gruppo da verificare.'
+            group['reason'] = 'Previews are very similar in framing, structure and color; review this group.'
     return groups
 
 
@@ -90,13 +90,13 @@ def select_with_category_coverage(ordered_ids, forced_ids, assessments, categori
             continue
         index = len(normalized)
         normalized.append({'id': group.get('id', f'group-{index}'), 'members': members,
-                           'reason': group.get('reason', 'Gruppo da verificare.')})
+                           'reason': group.get('reason', 'Group requires review.')})
         member_group.update({pid: index for pid in members})
     for pid in eligible_ids:
         if pid not in member_group:
             member_group[pid] = len(normalized)
             normalized.append({'id': 'single-' + str(len(normalized)), 'members': [pid],
-                               'reason': 'Equivalenza non dimostrata: immagine conservata come gruppo distinto.'})
+                               'reason': 'Equivalence not established: image retained as a separate group.'})
     group_map = {index: group for index, group in enumerate(normalized)}
     counts = Counter(member_group[pid] for pid in selected)
     rank = {pid: index for index, pid in enumerate(ordered)}
@@ -143,21 +143,21 @@ def select_with_category_coverage(ordered_ids, forced_ids, assessments, categori
             status = 'represented'
         elif recognized and not available:
             status = 'manual-excluded'
-            warnings.append(f'Categoria richiesta «{description}» non rappresentata: le corrispondenze sono escluse dalle decisioni manuali.')
+            warnings.append(f'Requested category “{description}” not represented: matching images were excluded by manual decisions.')
         elif not assessments:
             status = 'not-assessed'
-            warnings.append(f'Categoria richiesta «{description}» non valutata: analisi non eseguita.')
+            warnings.append(f'Requested category “{description}” not assessed: analysis was not performed.')
         elif uncertain:
             status = 'uncertain'
-            warnings.append(f'Categoria richiesta «{description}» non confermata: presenti valutazioni incerte da rivedere, nessuna sostituzione automatica.')
+            warnings.append(f'Requested category “{description}” unconfirmed: uncertain assessments require review, without automatic substitution.')
         else:
             status = 'not-detected'
-            warnings.append(f'Categoria richiesta «{description}»: nessuna corrispondenza idonea rilevata; non è prova di assenza nel servizio.')
+            warnings.append(f'Requested category “{description}”: no suitable match detected; this does not prove absence from the service.')
         coverage.append({'id': cid, 'description': description, 'selected_ids': representatives,
                          'eligible_count': len(available), 'uncertain_count': len(uncertain), 'status': status})
     if len(selected) > target:
-        warnings.append('Quantità indicativa superata per preservare gruppi distinti, categorie richieste o decisioni manuali: rivedere il compromesso prima di confermare.')
+        warnings.append('Indicative quantity exceeded to preserve distinct groups, requested categories or manual decisions: review the trade-off before confirming.')
     if len(selected) > target and len(group_map) > target:
-        warnings.append('Quantità indicativa superata per conservare una rappresentante per ogni gruppo visivo distinto; nessuna situazione è esclusa soltanto per rispettare il numero.')
+        warnings.append('Indicative quantity exceeded to retain one representative of every distinct visual group; no situation is excluded solely to meet the number.')
     return {'shortlist': selected, 'coverage': coverage, 'warnings': warnings,
             'selection_groups': normalized, 'selection_policy': SELECTION_POLICY}

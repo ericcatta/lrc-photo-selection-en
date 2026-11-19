@@ -1,7 +1,13 @@
-# Componenti di terze parti
+# Third-party components
 
-`plugin/lrc-photo-selection.lrplugin/JSON.lua` deriva da rxi/json.lua v0.1.2, Copyright (c) 2019 rxi, licenza MIT inclusa integralmente nel file. Modifica locale: formato dei numeri da 14 a 17 cifre significative, per preservare i timestamp Lightroom durante il trasferimento JSON.
+`plugin/lrc-photo-selection.lrplugin/JSON.lua` derives from rxi/json.lua v0.1.2,
+Copyright (c) 2019 rxi. The complete MIT license is included in that file. The local
+change formats numbers with 17 rather than 14 significant digits to preserve
+Lightroom timestamps during JSON exchange.
 
-Fonte: https://github.com/rxi/json.lua/tree/v0.1.2
+Source: https://github.com/rxi/json.lua/tree/v0.1.2
 
-React, React DOM e scheduler sono dipendenze MIT installate tramite npm. Le loro licenze sono nei pacchetti e vengono incluse negli asset di distribuzione dalla build. Dipendenze Python installate tramite pip; nessun loro codice è incorporato nel repository. Adobe SDK non viene ridistribuito. Nessun peso IA è distribuito.
+React, React DOM and scheduler are MIT-licensed npm dependencies. Their licenses
+are included in the packages and in distribution assets by the build. Python
+dependencies are installed through pip; their source code is not embedded in this
+repository. The Adobe SDK is not redistributed. No AI weights are distributed.

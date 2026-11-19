@@ -50,7 +50,7 @@ def test_missing_evidence_never_merges_equal_scene_labels_or_truncates_uniques()
     assert [g['members'] for g in groups] == [['a'],['b'],['c']]
     actual = select_with_category_coverage(list(data), [], data, [], 1, groups)
     assert actual['shortlist'] == ['a','b','c']
-    assert any('Quantità indicativa superata' in warning for warning in actual['warnings'])
+    assert any('Indicative quantity exceeded' in warning for warning in actual['warnings'])
 
 
 def test_uniform_colored_sky_and_tiny_subjects_stay_separate():
@@ -123,6 +123,6 @@ def test_local_valid_jpegs_choose_best_variant_then_every_distinct_context(tmp_p
         def encode(self,path): return vectors[hashlib.sha256(path.read_bytes()).hexdigest()]
     ranked = rerank_instruction_shortlist(initial,snapshot,store,Encoder())
     assert ranked['shortlist'] == ['1','2','3']
-    assert 'Alternativa' in ranked['shortlist_reasons']['0']
+    assert 'Alternative' in ranked['shortlist_reasons']['0']
     snapshot['settings']['target'] = 4
     assert rerank_instruction_shortlist(initial,snapshot,store,Encoder())['shortlist'] == ['1','2','3','0']

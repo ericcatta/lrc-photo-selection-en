@@ -11,10 +11,10 @@ from lrc_selection.vlm import LocalVLM, build_instruction_proposal
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Benchmark locale sulle sole anteprime importate')
-    parser.add_argument('--data-dir', type=Path, default=Path.home() / 'Library/Application Support/LrC Photo Selection')
+    parser = argparse.ArgumentParser(description='Local benchmark using only imported previews')
+    parser.add_argument('--data-dir', type=Path, default=Path.home() / 'Library/Application Support/LrC Photo Selection EN')
     parser.add_argument('--service-id', required=True)
-    parser.add_argument('--instructions-file', type=Path, help='Test separato: testo esatto del file, senza modificare il servizio')
+    parser.add_argument('--instructions-file', type=Path, help='Separate test: exact file text, without modifying the service')
     parser.add_argument('--without-preset', action='store_true')
     parser.add_argument('--target', type=int)
     parser.add_argument('--diversity', action='store_true')
@@ -27,7 +27,7 @@ def main():
         snapshot['settings'].update(service_criteria=[], subject_query='')
     if args.target is not None:
         if not 1 <= args.target <= len(snapshot['photos']):
-            parser.error('Quantità non valida')
+            parser.error('Invalid quantity')
         snapshot['settings']['target'] = args.target
     start = time.monotonic()
     vlm = LocalVLM(args.data_dir / 'models/Qwen3-VL-4B-Instruct-4bit')

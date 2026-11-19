@@ -14,10 +14,10 @@ REVISION = MODELS[DEFAULT_MODEL]['revision']
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Scarica un modello visivo locale; nessuna fotografia viene inviata')
-    parser.add_argument('--data-dir', type=Path, default=Path.home() / 'Library/Application Support/LrC Photo Selection')
+    parser = argparse.ArgumentParser(description='Download a local vision model; no photographs are sent')
+    parser.add_argument('--data-dir', type=Path, default=Path.home() / 'Library/Application Support/LrC Photo Selection EN')
     parser.add_argument('--model', choices=tuple(MODELS), default=DEFAULT_MODEL)
-    parser.add_argument('--activate', action='store_true', help='Seleziona esplicitamente il modello dopo la verifica dei file')
+    parser.add_argument('--activate', action='store_true', help='Explicitly select the model after verifying its files')
     args = parser.parse_args(argv)
     os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
     from huggingface_hub import snapshot_download
@@ -26,11 +26,11 @@ def main(argv=None):
     snapshot_download(spec['repo'], revision=spec['revision'], local_dir=target,
                       allow_patterns=['*.json', '*.safetensors', '*.txt', '*.jinja', '*.model', 'README.md', 'LICENSE*'])
     if not model_ready(target):
-        raise ValueError('Configurazione o pesi del modello locale mancanti o incompleti')
+        raise ValueError('Local model configuration or weights are missing or incomplete')
     (target / 'provenance.json').write_text(json.dumps({**spec, 'license': 'Apache-2.0'}))
     if args.activate:
         activate_model(args.data_dir, args.model)
-    print('Modello locale disponibile. Nessuna analisi avviata.')
+    print('Local model available. No analysis was started.')
 
 
 if __name__ == '__main__':

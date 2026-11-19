@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "${0:A:h:h}"
 if [[ ! -x .venv/bin/lrc-selection || ! -f web/dist/index.html ]]; then
-  echo 'Installazione incompleta. Segui README.md: ambiente Python e build web.'
+  echo 'Installation incomplete. Follow README.md to create the Python environment and build the web app.'
   exit 1
 fi
 exec .venv/bin/lrc-selection

@@ -1,81 +1,137 @@
-# Modelli: verifica preliminare, nessuna prestazione dimostrata
+# Models: preliminary evaluation, no general performance claim
 
-Mac rilevato: M1 Max, 64 GB RAM. Modello attivo: Qwen3.5-9B MLX 4 bit, runtime MLX-VLM 0.4.3, scelto esplicitamente dal proprietario dopo la prova sintetica. Il precedente Qwen3-VL-4B è stato rimosso. La copertura delle categorie non è ancora validata; vedere esiti e decisione finale sotto.
+The upstream test machine was an M1 Max with 64 GB RAM. The active upstream local
+model is Qwen3.5-9B MLX 4-bit with MLX-VLM 0.4.3, explicitly chosen by the owner after
+synthetic testing. The previous Qwen3-VL-4B weights were removed. General category
+coverage and photographic selection quality are not validated by this choice.
+The English edition does not inherit the Italian installation or runtime data.
 
-| Candidato | Evidenza primaria | Decisione iniziale |
+## Initial candidates and primary evidence
+
+| Candidate | Primary evidence | Initial decision |
 |---|---|---|
-| SigLIP 2 base | https://huggingface.co/google/siglip2-base-patch16-224 — encoder immagine/testo, Apache-2.0 | Primo encoder opzionale, caricamento solo da percorso locale e revisione fissata. Somiglianza non prova equivalenza. |
-| DINOv3 ViT-S | https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m — gated, licenza Meta specifica | Rinviato; valutare accesso e termini prima del download. |
-| Mapika decider-4b | https://huggingface.co/Mapika/decider-4b e https://github.com/Mapika/decider — variante visiva strutturata; pesi dichiarati Apache-2.0, cautele sui dati di training | Compatibilità Mac visiva non dimostrata; non installare inizialmente. |
-| LFM2.5-VL-3B | https://huggingface.co/LiquidAI/LFM2.5-VL-3B-MLX-8bit — export ufficiale Apple Silicon | Licenza LFM Open License v1.0 con condizioni; candidato successivo, non confondere col 24B-A2B testuale. |
-| Qwen3-VL-4B | https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct — Apache-2.0; percorso MLX disponibile | Termine di confronto successivo se il benchmark dimostra necessità. |
-| Apple Vision | https://developer.apple.com/documentation/vision/detecting-objects-in-still-images | Rilevamento locale di volti/landmark; non riconoscimento identità. |
-| InsightFace | https://github.com/deepinsight/insightface/blob/master/python-package/docs/model_zoo.md | Licenze dei pesi non equivalenti al codice; non incorporare modelli non commerciali senza valutazione. |
+| SigLIP 2 base | [Model card](https://huggingface.co/google/siglip2-base-patch16-224), image/text encoder, Apache-2.0 | First optional encoder; load only from a pinned local revision. Similarity does not establish equivalence. |
+| DINOv3 ViT-S | [Model card](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m), gated with Meta-specific license | Deferred pending access and license review before download. |
+| Mapika decider-4b | [Weights](https://huggingface.co/Mapika/decider-4b), [code](https://github.com/Mapika/decider), structured visual decisions; weights declared Apache-2.0 with training-data caveats | Mac visual compatibility not demonstrated; not installed initially. |
+| LFM2.5-VL-3B | [Official Apple Silicon export](https://huggingface.co/LiquidAI/LFM2.5-VL-3B-MLX-8bit) | Candidate under LFM Open License v1.0 conditions; distinct from the text-only 24B-A2B model. |
+| Qwen3-VL-4B | [Model card](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct), Apache-2.0, MLX conversion available | Initial visual baseline for later comparison. |
+| Apple Vision | [Object detection documentation](https://developer.apple.com/documentation/vision/detecting-objects-in-still-images) | Local faces/landmarks, without identity recognition. |
+| InsightFace | [Model zoo](https://github.com/deepinsight/insightface/blob/master/python-package/docs/model_zoo.md) | Weight licenses differ from code licenses; do not bundle noncommercial weights without review. |
 
-LAION aesthetic predictors non selezionati: checkpoint/licenza/validità da verificare se emerge un problema misurato. OpenJev, Laya, SemIf-OpenJev e Bespoke-Nimble-9B non adottati: non si presume supporto immagini, disponibilità Mac o licenza commerciale. Queste voci rimangono da verificare prima di qualunque adozione, non sono dipendenze del prodotto.
+LAION aesthetic predictors were not selected: checkpoint, license and validity
+require verification if a measured problem warrants them. OpenJev, Laya,
+SemIf-OpenJev and Bespoke-Nimble-9B were not adopted; image support, Mac availability
+and commercial licensing must not be assumed. These are research leads, not dependencies.
 
-## Protocollo di benchmark
-Campione autorizzato con annotazioni manuali: cambi di persona, pose/risate, raffiche, momenti unici mossi, volti piccoli/di profilo/coperti, due fotocamere. Separare calibrazione e verifica. Registrare ID del campione senza originali in Git, checksum delle anteprime, modello/revisione/runtime/risoluzione, criteri e soglie. Misurare innanzitutto situazioni perse, composizioni unite erroneamente, immagini uniche escluse e blocchi violati. Poi doppioni, tempo, memoria e costo. Non pubblicare soglie arbitrarie come validate.
+## Benchmark protocol
 
-## Runtime locale aggiunto il 18 novembre 2026
+Use an authorized, manually annotated sample covering changed people,
+poses/laughter, bursts, unique imperfect moments, small/profile/occluded faces and
+two cameras. Separate calibration and verification. Record sample IDs without
+originals in Git, preview checksums, model/revision/runtime/resolution, criteria and
+thresholds. First measure missed situations, incorrectly merged compositions,
+unique images excluded and violated manual locks. Only then measure duplicates,
+time, memory and cost. Arbitrary thresholds must not be described as validated.
 
-- Qwen3-VL-4B-Instruct, conversione MLX 4 bit: `mlx-community/Qwen3-VL-4B-Instruct-4bit`, revisione `2fd8dacbdb8f1e54b8c005f081ec5bf79c56376b`, licenza dichiarata Apache-2.0. MLX-VLM 0.3.9; dipendenze effettive in requirements-local-ai-lock.txt. Anteprime temporanee max 448 pixel per inferenza, limite che può perdere soggetti piccoli. Nessuna identificazione nominale.
-- SigLIP 2 base scaricato alla revisione `75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2`; adattatore di confronto opzionale. Non sostituisce l’esecuzione delle istruzioni libere.
-- Download esplicito con scripts/setup_local_model.py; mai durante import/analisi. Caricamento da directory locale, codice remoto disabilitato. Hash dei pesi/config e revisione prompt in cache.
+Raw JSON files in `docs/benchmarks/` preserve original upstream Italian prompts and
+model responses. They are evidence artifacts, intentionally untranslated. English
+explanations here do not change those measured outputs or validate the English UI.
 
-Fonti: https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct ; https://huggingface.co/mlx-community/Qwen3-VL-4B-Instruct-4bit ; https://github.com/Neywa-Labs/mlx-vlm .
+## Initial local runtime — November 18, 2026
 
-La correttezza generale delle istruzioni non è dimostrata da una risposta JSON valida. Servono prove positive, negative, preferenze, conflitti, immagini ambigue e confronto manuale. I risultati dei modelli sono interpretazioni, non fatti importati.
+- Qwen3-VL-4B-Instruct 4-bit conversion:
+  `mlx-community/Qwen3-VL-4B-Instruct-4bit`, revision
+  `2fd8dacbdb8f1e54b8c005f081ec5bf79c56376b`, declared Apache-2.0. MLX-VLM 0.3.9;
+  effective dependencies are recorded in `requirements-local-ai-lock.txt`.
+  Temporary inference previews were limited to 448 pixels, which can lose small
+  subjects. No named identification was performed.
+- SigLIP 2 base revision `75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2` was downloaded
+  as an optional comparison adapter. It does not execute free-form instructions.
+- Downloads are explicit through `scripts/setup_local_model.py`, never during
+  import or analysis. Loading uses local directories with remote code disabled.
+  Cache identity includes weight/configuration hashes and prompt revisions.
 
+Sources: [Qwen](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct),
+[MLX conversion](https://huggingface.co/mlx-community/Qwen3-VL-4B-Instruct-4bit),
+[MLX-VLM](https://github.com/Neywa-Labs/mlx-vlm).
 
-## Ricerca del 18 novembre 2026, dopo il test locale
+Valid JSON does not demonstrate correct understanding. Positive, negative,
+preference, conflict and ambiguous-image cases require manual comparison.
+Model outputs are interpretations, not imported facts.
 
-Hardware nuovamente rilevato: MacBook Pro M1 Max, 10 core CPU, 64 GB di memoria unificata. La scelta tiene conto anche della latenza sulle raccolte, non solo della possibilità di caricare i pesi.
+## Subsequent hardware-aware research — November 18, 2026
 
-| Candidato | Valutazione per questo progetto |
+Hardware was reconfirmed as a MacBook Pro M1 Max, 10 CPU cores and 64 GB unified
+memory. Collection latency matters as well as whether weights fit in memory.
+
+| Candidate | Assessment for this project |
 |---|---|
-| Qwen3.5-9B MLX 4 bit | Candidato preferito per il nuovo collaudo: modello visivo/testuale, Apache-2.0, circa 6 GB di pesi. Il produttore riporta risultati generali incoraggianti su comprensione visiva e istruzioni; non sono misure della selezione fotografica o della conversione quantizzata. |
-| Qwen3-VL-4B attuale | Più piccolo e già integrato. Il precedente fallimento 150/160 comprendeva problemi di integrazione; non basta a condannare il modello. Rimane il riferimento del confronto tecnico. |
-| Qwen3-VL-8B | Alternativa nella stessa famiglia, con licenza Apache-2.0. Non installata: Qwen3.5-9B offre una candidatura più interessante nella stessa fascia di memoria, da verificare sul nostro flusso. |
-| Qwen3-VL-32B | Può essere plausibile quantizzato con 64 GB, ma maggiore memoria e latenza non sono giustificate da misure di beneficio nel nostro caso. Non installato. |
-| Liquid LFM2.5-VL-3B | Interessante per velocità/dispositivi limitati, ma licenza specifica LFM e nessun vantaggio dimostrato nel culling in italiano. Non installato. |
-| Mapika decider-4b v3 | Supporta immagini, ma restituisce decisioni tipizzate su opzioni esplicite anziché essere un sostituto diretto del nostro interprete generativo. Richiederebbe un diverso adattatore; nessun vantaggio misurato che lo giustifichi ora. |
+| Qwen3.5-9B MLX 4-bit | Preferred candidate for another test: visual/text model, Apache-2.0, approximately 6 GB of weights. Vendor benchmarks are not culling or quantization-specific measurements. |
+| Existing Qwen3-VL-4B | Smaller and integrated. The earlier 150/160 failure included integration defects and does not alone condemn the model. Retained as a technical comparison baseline. |
+| Qwen3-VL-8B | Apache-2.0 alternative; not installed because 9B was a more interesting candidate in a similar memory range, subject to workflow testing. |
+| Qwen3-VL-32B | Quantization may fit 64 GB, but additional memory/latency lacked measured benefit. Not installed. |
+| Liquid LFM2.5-VL-3B | Potential speed advantage, but specific LFM license and no demonstrated Italian culling advantage. Not installed. |
+| Mapika decider-4b v3 | Image support with typed decisions over explicit options rather than a direct generative-interpreter replacement. Requires another adapter without measured benefit. |
 
-Fonti primarie consultate:
-- [Qwen3.5-9B, scheda e benchmark del produttore](https://huggingface.co/Qwen/Qwen3.5-9B)
-- [Licenza originale Apache 2.0](https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE)
-- [Conversione MLX 4 bit](https://huggingface.co/mlx-community/Qwen3.5-9B-MLX-4bit)
-- [Qwen3-VL-8B](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)
-- [LFM2.5-VL-3B](https://huggingface.co/LiquidAI/LFM2.5-VL-3B)
-- [Decider v3](https://huggingface.co/Mapika/decider-4b)
-- [Runtime MLX-VLM](https://github.com/Neywa-Labs/mlx-vlm)
+Primary sources consulted: [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B),
+[Apache license](https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE),
+[4-bit MLX export](https://huggingface.co/mlx-community/Qwen3.5-9B-MLX-4bit),
+[Qwen3-VL-8B](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct),
+[LFM2.5-VL-3B](https://huggingface.co/LiquidAI/LFM2.5-VL-3B),
+[Decider v3](https://huggingface.co/Mapika/decider-4b),
+[MLX-VLM](https://github.com/Neywa-Labs/mlx-vlm).
 
-La preferenza per 9B è una decisione ingegneristica, non la dimostrazione che sia universalmente il migliore. Non esiste in queste fonti un benchmark corrispondente a preferenze personali, varietà di un servizio e merito fotografico. La selezione dell'intera raccolta resta responsabilità della pipeline; cambiare modello non sostituisce le regole di copertura.
+The 9B preference is an engineering choice, not proof that it is universally best.
+These sources do not benchmark this owner’s preferences, service variety and
+photographic merit. Whole-collection selection remains a pipeline responsibility.
 
-Il controllo riproducibile `scripts/check_local_model.py` usa soltanto forme geometriche generate e istruzioni italiane. Misura caricamento, memoria MLX e risposte strutturate; non accede ai servizi o alle foto dell'utente e non valuta l'estetica. Usa lo stesso adattatore dell'app, offline e con thinking disabilitato. I risultati reali su Campione di prova restano da verificare manualmente.
+## Synthetic comparison and superseded initial decision
 
-### Esito della prova e decisione
+`scripts/check_local_model.py` generates geometric shapes and uses Italian
+instructions. It measures loading, MLX memory and structured responses through the
+same offline adapter, with thinking disabled. It accesses no user services or
+photographs and does not evaluate aesthetics.
 
-**Nessuna sostituzione attivata.** Rimane Qwen3-VL-4B con runtime 0.3.9 e prompt v6 già corretto. Questo non significa che sia stato dimostrato il modello migliore: il candidato 9B non ha superato il requisito funzionale minimo del confronto.
-
-| Configurazione | Controlli attesi superati | Tempo totale | Picco memoria MLX |
+| Configuration | Expected checks passed | Total time | Peak MLX memory |
 |---|---:|---:|---:|
-| Qwen3-VL-4B, runtime 0.3.9 | 2/5 | 35,0 s | 4,27 GB |
-| Qwen3.5-9B, runtime 0.4.3 isolato | 3/5 | 93,4 s | 7,70 GB |
+| Qwen3-VL-4B, runtime 0.3.9 | 2/5 | 35.0 s | 4.27 GB |
+| Qwen3.5-9B, isolated runtime 0.4.3 | 3/5 | 93.4 s | 7.70 GB |
 
-Il 9B riconosce cerchio rosso e quadrato blu ma esclude ciascuna immagine perché manca l'altra categoria: non rispetta la copertura tra immagini prevista dall'app. Il 4B in questa prova non ricava le categorie geometriche e sbaglia i due casi positivi. Entrambi generano risposte strutturalmente valide: la validazione JSON da sola non prova comprensione corretta. Le differenze includono anche il runtime, quindi non sono attribuibili esclusivamente ai pesi. Picco MLX non equivale alla memoria totale del Mac. Tempi non estrapolabili a un matrimonio.
+The initial decision was **not to activate the replacement**: 9B recognized the red
+circle and blue square but excluded each because the other category was absent,
+violating collection-level coverage. The 4B failed to derive the geometric
+categories and missed both positive cases. Both produced structurally valid output.
+Runtime differences prevent attributing all differences to weights. Peak MLX memory
+is not total Mac memory, and these times cannot be extrapolated to a wedding.
 
-Report sintetici completi: [4B](benchmarks/local-model-4b.json), [9B](benchmarks/local-model-9b.json). Per ripetere il candidato occorre MLX-VLM 0.4.3; è stato valutato da un pacchetto estratto temporaneamente, senza aggiornare la .venv attiva. Revisione pesi 9B: `938d8919941c6e7efd3c7150eff7fe9d12afa631`. Il suo download viene rimosso dopo la prova negativa, evitando un secondo modello inutilizzato. Nessuna foto reale, decisione, stella o richiesta API coinvolta.
+Complete raw reports: [4B](benchmarks/local-model-4b.json) and
+[9B](benchmarks/local-model-9b.json). The candidate used MLX-VLM 0.4.3 extracted into
+a temporary package without upgrading the active environment. The 9B weight
+revision was `938d8919941c6e7efd3c7150eff7fe9d12afa631`; that candidate download was
+removed following the negative test. No real photographs, decisions, stars or API
+requests were involved.
 
-Prima di cambiare modello, il criterio di accettazione resta: categorie distinte conservate nell'insieme, nessun obbligo inventato di compresenza nella singola foto, casi positivi e negativi corretti, quindi confronto umano sul campione reale. Non dichiarare risolto questo comportamento sulla base dei soli test unitari.
+Acceptance still requires distinct categories retained across images, no invented
+same-photo co-occurrence requirement, correct positive/negative cases and then a
+human comparison on the authorized real sample. Unit tests alone do not establish this.
 
+## Later owner decision: activate Qwen3.5-9B anyway
 
-### Decisione successiva del proprietario: attivare comunque Qwen3.5-9B
+After reviewing the negative coverage result, the owner explicitly requested the
+9B replacement and removal of 4B. This superseded the initial decision above.
+Qwen3.5-9B MLX 4-bit revision `938d8919941c6e7efd3c7150eff7fe9d12afa631` was adopted
+with MLX-VLM 0.4.3. Installation started no new photo analysis and did not establish
+coverage validity.
 
-Dopo aver letto l'esito negativo del controllo di copertura, il proprietario ha chiesto esplicitamente di sostituire il 4B con il 9B e rimuovere il precedente. La decisione iniziale di non sostituire, sopra riportata, è quindi superata. Si adotta Qwen3.5-9B MLX 4 bit, revisione `938d8919941c6e7efd3c7150eff7fe9d12afa631`, con MLX-VLM 0.4.3. Il limite sulla copertura delle categorie resta aperto: non è dichiarato risolto o validato. Nessuna nuova analisi delle fotografie viene avviata dall'installazione.
+`local-model-selection.json` in local application storage explicitly selects the
+active model. Setup supports `--model Qwen3.5-9B-MLX-4bit --activate`; analysis loading
+remains offline. The previous 4B was removed only after provenance/file checks and
+confirmation of the active selection. SigLIP 2 remains a separate encoder.
 
-Il modello attivo è selezionato esplicitamente in `local-model-selection.json` nello spazio dati locale. Lo script di installazione permette `--model Qwen3.5-9B-MLX-4bit --activate`; il caricamento durante l'analisi resta offline. Il precedente 4B viene eliminato solo dopo verifica dei file e della selezione attiva. SigLIP 2 è un encoder distinto e rimane, perché non è il modello sostituito.
+## November 19: integration revision v9
 
-### Aggiornamento del 19 novembre: correzione dell'integrazione v9
-
-Il difetto riprodotto ieri sulle categorie è corretto nei casi sintetici controllati: 11/11 esiti attesi con il medesimo Qwen3.5-9B. Vedere [report v9](benchmarks/local-model-9b-v9.json) e [verifiche](validation.md). I risultati negativi precedenti restano storici; il modello e il runtime non sono stati sostituiti. La qualità della selezione su fotografie reali rimane da collaudare.
+The reproduced category defect passed 11/11 controlled synthetic checks with the
+same 9B model after integration revision v9. See the [v9 report](benchmarks/local-model-9b-v9.json)
+and [validation history](validation.md). Earlier failures remain historical evidence;
+weights and runtime were not replaced again. Real photographic selection quality
+still requires manual validation.

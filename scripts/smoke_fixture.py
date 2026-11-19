@@ -13,7 +13,7 @@ class SyntheticKeychain:
     def get(self):
         return None
     def set(self, value):
-        raise RuntimeError('Fixture: nessuna chiave reale consentita')
+        raise RuntimeError('Fixture: real keys are not allowed')
 
 def isolate_config(app):
     if hasattr(app.state, 'openai_config'):

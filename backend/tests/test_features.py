@@ -19,7 +19,7 @@ def test_optional_features_do_not_remove_candidates(client):
     after = client.get('/api/services/' + s['id']).json()
     assert before['selected_ids'] == after['selected_ids']
     assert after['decisions'] == before['decisions']
-    assert all(r['error'] == 'Anteprima mancante' for r in evidence['records'].values())
+    assert all(r['error'] == 'Missing preview' for r in evidence['records'].values())
     assert after['interpretations']['model']['adapter'] == 'synthetic-test-only'
 
 def test_benchmark_detects_loss_and_merge(client):

@@ -43,7 +43,7 @@ def lookup_model(model):
     if canonical in MODEL_SPECS:
         return dict(MODEL_SPECS[canonical], pricing_known=True, compatibility='verified', **({'long_context_threshold': 272000, 'long_context_input_multiplier': 2., 'long_context_output_multiplier': 1.5} if canonical.startswith('gpt-6.2') else {}))
     if not compatible_family(canonical):
-        raise ValueError('Modello non compatibile con l’analisi fotografica. Scegli un modello dalla lista.')
+        raise ValueError('Model incompatible with photo analysis. Select a model from the list.')
     return {'id': canonical, 'label': canonical, 'input_per_million': None, 'output_per_million': None,
             'source': None, 'verified_at': None, 'pricing_known': False, 'compatibility': 'family'}
 
@@ -58,7 +58,7 @@ def request_parameters(model):
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise RuntimeError('Reindirizzamento API rifiutato')
+        raise RuntimeError('API redirect rejected')
 
 
 def fetch_account_models(key):
@@ -66,10 +66,10 @@ def fetch_account_models(key):
     with urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=certifi.where()))).open(request, timeout=20) as response:
         raw = response.read(2 * 1024 * 1024 + 1)
     if len(raw) > 2 * 1024 * 1024:
-        raise ValueError('Elenco modelli non valido')
+        raise ValueError('Invalid model list')
     data = json.loads(raw)
     if not isinstance(data, dict) or not isinstance(data.get('data'), list):
-        raise ValueError('Elenco modelli non valido')
+        raise ValueError('Invalid model list')
     return {item['id'] for item in data['data'] if isinstance(item, dict) and isinstance(item.get('id'), str) and len(item['id']) <= 200}
 
 
@@ -88,26 +88,26 @@ class ModelCatalog:
             try:
                 spec = lookup_model(model)
                 models.append(dict(spec, supported=True, available=(model in available if available is not None else None),
-                                   compatibility_note=('Compatibilità verificata; accesso dipende dall’account.' if spec['compatibility'] == 'verified' else 'Famiglia candidata: compatibilità effettiva verificata solo al primo invio confermato. Tariffa non disponibile.')))
+                                   compatibility_note=('Compatibility verified; access depends on the account.' if spec['compatibility'] == 'verified' else 'Candidate family: actual compatibility is checked only during the first confirmed submission. Pricing unavailable.')))
             except ValueError:
                 models.append({'id': model, 'label': model, 'available': True, 'supported': False,
                                'input_per_million': None, 'output_per_million': None, 'pricing_known': False,
-                               'compatibility': 'unsupported', 'compatibility_note': 'Modello non adatto alle immagini o al formato richiesto.'})
+                               'compatibility': 'unsupported', 'compatibility_note': 'Model unsuitable for images or the required format.'})
         checked_at = cached['checked_at'] if cached else None
         stale = not checked_at or (datetime.now(timezone.utc) - datetime.fromisoformat(checked_at)).total_seconds() > 86400
         return {'models': models, 'checked_at': checked_at, 'stale': stale,
-                'note': 'Elenco aggiornabile dall’account OpenAI. Le famiglie fotografiche compatibili sono utilizzabili anche senza tariffa, con conferma esplicita del costo non stimabile. Nessuna sostituzione automatica del modello scelto.'}
+                'note': 'Model list can be refreshed from the OpenAI account. Compatible photo model families can be used without pricing after explicitly confirming the unestimable cost. The selected model is never substituted automatically.'}
 
     def refresh(self):
         try:
             key = self.config.secrets().get()
             if not key:
-                raise HTTPException(409, 'Salva prima la chiave API nella configurazione.')
+                raise HTTPException(409, 'Save the API key in settings first.')
             available = self.transport(key)
         except HTTPException:
             raise
         except Exception:
-            raise HTTPException(502, 'Verifica modelli non riuscita. Controlla chiave, permessi e connessione; nessuna foto inviata.') from None
+            raise HTTPException(502, 'Model check failed. Check the key, permissions and connection; no photos sent.') from None
         record = {'ids': sorted(set(available)),
                   'checked_at': datetime.now(timezone.utc).isoformat()}
         temporary = self.path.with_suffix('.pending')

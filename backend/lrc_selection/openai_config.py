@@ -12,12 +12,12 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 class MacKeychain:
     """Generic-password entry accessed in process; secrets never enter argv/files."""
-    service = b'lrc-photo-selection-openai'
+    service = b'lrc-photo-selection-en-openai'
     account = b'api-key'
 
     def __init__(self):
         if sys.platform != 'darwin':
-            raise RuntimeError('Portachiavi macOS non disponibile')
+            raise RuntimeError('macOS Keychain unavailable')
         self.lib = ctypes.CDLL('/System/Library/Frameworks/Security.framework/Security')
         self.cf = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
         ptr = ctypes.c_void_p
@@ -37,14 +37,14 @@ class MacKeychain:
         if status == -25300:  # errSecItemNotFound
             return None, None
         if status:
-            raise RuntimeError('Accesso al portachiavi non riuscito')
+            raise RuntimeError('Keychain access failed')
         try:
             try:
                 value = ctypes.string_at(data, length.value).decode('utf-8')
             except UnicodeDecodeError:
                 if item:
                     self.cf.CFRelease(item)
-                raise RuntimeError('Chiave nel portachiavi non valida') from None
+                raise RuntimeError('Invalid key in Keychain') from None
         finally:
             self.lib.SecKeychainItemFreeContent(None, data)
         return value, item
@@ -64,7 +64,7 @@ class MacKeychain:
             else:
                 status = self.lib.SecKeychainAddGenericPassword(None, len(self.service), self.service, len(self.account), self.account, len(encoded), ctypes.c_char_p(encoded), None)
             if status:
-                raise RuntimeError('Salvataggio nel portachiavi non riuscito')
+                raise RuntimeError('Keychain save failed')
         finally:
             if item:
                 self.cf.CFRelease(item)
@@ -92,7 +92,7 @@ class OpenAIConfig:
             has_key = bool(self.secrets().get())
             error = None
         except RuntimeError:
-            has_key, error = False, 'Portachiavi non disponibile: nessuna chiave verificata.'
+            has_key, error = False, 'Keychain unavailable: no key verified.'
         return {'configured': has_key and bool(model), 'key_configured': has_key, 'model': model,
                 'storage': 'macOS Keychain', 'analysis_enabled': True, 'error': error}
 
@@ -100,13 +100,13 @@ class OpenAIConfig:
         if body.api_key is not None:
             key = body.api_key.get_secret_value()
             if not key or key != key.strip() or len(key) > 4096:
-                raise HTTPException(422, 'Chiave API non valida.')
+                raise HTTPException(422, 'Invalid API key.')
             try:
                 self.secrets().set(key)
                 # Availability belongs to the credential/account last checked.
                 (self.path.parent / 'openai-available-models.json').unlink(missing_ok=True)
             except RuntimeError:
-                raise HTTPException(503, 'Impossibile salvare la chiave nel portachiavi.') from None
+                raise HTTPException(503, 'Unable to save the key in Keychain.') from None
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         temporary = self.path.with_suffix('.pending')
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -131,7 +131,7 @@ def register_openai_config(app, root, *, keychain=None):
         try:
             body = OpenAIConfigInput.model_validate(await request.json())
         except (ValueError, TypeError):
-            raise HTTPException(422, 'Configurazione OpenAI non valida.') from None
+            raise HTTPException(422, 'Invalid OpenAI configuration.') from None
         return config.save(body)
 
 
@@ -142,20 +142,20 @@ def build_responses_request(model: str, instructions: str, previews: list[bytes]
     Only caller-supplied JPEG/PNG derived preview bytes are accepted, never paths.
     """
     if not model or not isinstance(instructions, str) or not 1 <= max_output_tokens <= 16000:
-        raise ValueError('Richiesta non valida')
+        raise ValueError('Invalid request')
     if not previews or len(previews) > 100:
-        raise ValueError('Numero anteprime non valido')
+        raise ValueError('Invalid preview count')
     content = [{'type': 'input_text', 'text': instructions}]
     for data in previews:
         if not isinstance(data, bytes) or not data or len(data) > 24 * 1024 * 1024:
-            raise ValueError('Anteprima non valida')
+            raise ValueError('Invalid preview')
         if data.startswith(b'\xff\xd8\xff'):
             mime = 'image/jpeg'
         elif data.startswith(b'\x89PNG\r\n\x1a\n'):
             mime = 'image/png'
         else:
-            raise ValueError('Solo anteprime JPEG o PNG')
+            raise ValueError('JPEG or PNG previews only')
         content.append({'type': 'input_image', 'image_url': 'data:'+mime+';base64,'+base64.b64encode(data).decode('ascii'), 'detail': 'auto'})
     return {'model': model, 'store': False, 'max_output_tokens': max_output_tokens,
-            'input': [{'role': 'developer', 'content': [{'type': 'input_text', 'text': 'Valuta soltanto le anteprime per la selezione fotografica. Segnala incertezza e criteri non verificabili. Non modificare immagini.\n'+context}]},
+            'input': [{'role': 'developer', 'content': [{'type': 'input_text', 'text': 'Assess only previews for photo selection. Report uncertainty and unverifiable criteria. Do not modify images. Respond in English.\n'+context}]},
                       {'role': 'user', 'content': content}]}

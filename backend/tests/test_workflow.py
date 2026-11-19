@@ -59,7 +59,7 @@ def test_auth_host_origin_and_cookie(client):
     assert client.post('/api/session', json={'token': TOKEN}, headers={'Origin': 'https://evil.test'}).status_code == 403
     assert client.post('/api/session', json={'token': TOKEN}).status_code == 200
     assert client.get('/api/services', headers={'Authorization': ''}).status_code == 200
-    assert client.cookies.get('lrc_session') == TOKEN
+    assert client.cookies.get('lrc_session_en') == TOKEN
 
 def test_identity_idempotency_and_manifest_conflict(client):
     m = manifest()
@@ -123,7 +123,7 @@ def test_manual_decisions_lock_and_coverage_confirmation(client):
     assert s['decisions']['u0:1'] == {'state': 'excluded', 'locked': True}
     assert 'u0:1' not in s['selected_ids']
     assert len(s['selected_ids']) == 3
-    assert any('non raggiungibile' in w for w in s['proposal']['warnings'])
+    assert any('cannot be reached' in w for w in s['proposal']['warnings'])
 
 def test_preset_snapshot_and_unsupported_instructions(client):
     s = imported(client)
@@ -259,7 +259,7 @@ def test_connection_token_does_not_reset_active_job(client):
 def test_second_server_cannot_reset_first_servers_jobs(client):
     store = client.app.state.store
     imported(client)
-    with pytest.raises(RuntimeError, match='backend usa già'):
+    with pytest.raises(RuntimeError, match='backend is already using'):
         with TestClient(create_app(store.root, token=TOKEN)):
             pass
     assert detail(client)['status'] == 'ready'
@@ -488,7 +488,7 @@ def test_blocked_instructions_report_reason_without_claiming_invalid_photos(clie
         store.put(db, current)
     result = run(client, service)
     assert result['job']['status'] == 'failed'
-    assert 'Analisi non avviata' in result['job']['error']
+    assert 'Analysis not started' in result['job']['error']
     assert interpretation['ambiguities'][0] in result['job']['error']
     assert 'risposte non valide' not in result['job']['error']
     assert result['analysis_diagnostics']['stage'] == 'instructions'
@@ -505,10 +505,10 @@ def test_old_zero_response_failure_is_presented_as_not_assessed(client):
     with store.transaction() as db:
         current = store.get(s['id'], db)
         current['job'] = {'status': 'failed', 'completed': 0, 'total': 4,
-                          'error': 'Analisi locale incompleta: 0 risposte non valide su 4.'}
+                          'error': 'Local analysis incomplete: 0 invalid responses su 4.'}
         current['analysis_diagnostics'] = {'attempted': 0, 'invalid': 0, 'not_assessed': 4}
         store.put(db, current)
     result = detail(client)
-    assert 'prima di valutare le foto' in result['job']['error']
+    assert 'before assessing photos' in result['job']['error']
     assert len(result['selected_ids']) == 4
-    assert store.get(s['id'])['job']['error'].startswith('Analisi locale incompleta: 0')
+    assert store.get(s['id'])['job']['error'].startswith('Local analysis incomplete: 0')

@@ -41,8 +41,8 @@ def analyze(service):
         positive = [p for p in members if service['decisions'].get(p, {}).get('state') in SELECTED]
         allowed = [p for p in members if service['decisions'].get(p, {}).get('state') not in {'excluded', 'alternative'}]
         rep = (positive or allowed or members)[0]
-        reason = ('Anteprime JPEG identiche byte per byte; equivalenza del contenuto visibile, non degli originali.'
-                  if len(members) > 1 else 'Nessuna equivalenza dimostrata: immagine conservata.')
+        reason = ('Byte-identical JPEG previews; equivalence of visible content, not of the originals.'
+                  if len(members) > 1 else 'No equivalence established: image retained.')
         groups.append({'id': f'exact-{i}', 'members': members, 'representative': rep, 'reason': reason,
                        'kind': 'preview-equivalence', 'confidence': 'exact-preview' if len(members) > 1 else 'unknown'})
         if allowed:
@@ -61,18 +61,18 @@ def analyze(service):
         chosen = [pid for pid in selected if pid in group['members']]
         for pid in chosen[1:]:
             if pid not in forced:
-                reasons[pid] = 'Variante aggiunta distribuendo le alternative tra i gruppi per raggiungere la quantità richiesta.'
+                reasons[pid] = 'Variation added by distributing alternatives across groups to reach the requested quantity.'
     proposal = {'selected': selected, 'groups': groups, 'reasons': reasons,
-                'warnings': ['Il motore iniziale riconosce solo anteprime identiche; scene, persone e pose non sono state riconosciute.'],
+                'warnings': ['The baseline engine recognizes only identical previews; scenes, people and poses have not been recognized.'],
                 'engine': 'exact-preview-v1', 'selection_policy': balanced['selection_policy'],
                 'selection_groups': balanced['selection_groups']}
     working = dict(service, proposal=proposal)
     proposal['selected'] = effective_selected(working)
     if len(proposal['selected']) < target:
-        proposal['warnings'].append('Quantità non raggiungibile senza cambiare decisioni manuali: revisione necessaria.')
+        proposal['warnings'].append('Target cannot be reached without changing manual decisions: review required.')
     if len(proposal['selected']) > target:
-        proposal['warnings'].append('Quantità superata: mancano evidenze sufficienti per ridurre altre immagini in sicurezza.')
+        proposal['warnings'].append('Target exceeded: insufficient evidence to safely reduce further images.')
     for g in groups:
         if not set(g['members']) & set(proposal['selected']):
-            proposal['warnings'].append('Un gruppo non ha candidate per effetto delle decisioni manuali.')
+            proposal['warnings'].append('A group has no candidates because of manual decisions.')
     return proposal

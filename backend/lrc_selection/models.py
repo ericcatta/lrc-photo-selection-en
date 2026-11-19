@@ -11,7 +11,7 @@ class Photo(StrictModel):
     uuid: str = Field(min_length=1, max_length=128)
     local_id: int = Field(ge=0)
     filename: str = Field(max_length=1024)
-    camera: str = Field(default='Sconosciuta', max_length=256)
+    camera: str = Field(default='Unknown', max_length=256)
     captured_at: float | None = None
     baseline_rating: int = Field(ge=0, le=5)
     baseline_edit_time: float | None = None
@@ -27,7 +27,7 @@ class ImportPhotos(StrictModel):
     def unique(self):
         keys = [(p.uuid, p.local_id) for p in self.photos]
         if len(set(keys)) != len(keys) or len({p.id for p in self.photos}) != len(self.photos) or len({p.local_id for p in self.photos}) != len(self.photos):
-            raise ValueError('Identificativi duplicati nel manifest')
+            raise ValueError('Duplicate identifiers in the manifest')
         return self
 
 class ImportManifest(StrictModel):
@@ -42,7 +42,7 @@ class ImportManifest(StrictModel):
     def unique(self):
         keys = [(p.uuid, p.local_id) for p in self.photos]
         if len(set(keys)) != len(keys) or len({p.id for p in self.photos}) != len(self.photos) or len({p.local_id for p in self.photos}) != len(self.photos):
-            raise ValueError('Identificativi duplicati nel manifest')
+            raise ValueError('Duplicate identifiers in the manifest')
         return self
 
 class Settings(StrictModel):

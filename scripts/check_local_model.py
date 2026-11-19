@@ -26,9 +26,9 @@ def main():
     loaded = time.monotonic()
     results, contexts = [], {}
     for name, text, count, mode in [
-        ('plain', 'uccelli, ritratti, landscape', 3, 'any'),
-        ('or', 'cerchi, quadrati', 2, 'any'),
-        ('cooccur', 'Un cerchio rosso e un quadrato blu presenti insieme nella stessa immagine', 2, 'all'),
+        ('plain', 'birds, portraits, landscapes', 3, 'any'),
+        ('or', 'circles, squares', 2, 'any'),
+        ('cooccur', 'A red circle and a blue square together in the same image', 2, 'all'),
     ]:
         begin = time.monotonic()
         value = model.interpret(text, [])

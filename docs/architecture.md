@@ -1,62 +1,123 @@
-# Architettura e sicurezza
+# Architecture and safety
 
-## Componenti
-Il plugin SDK Lua legge solo le foto esplicitamente selezionate, genera JPEG e invia un manifest JSON v1 al backend FastAPI su 127.0.0.1:8765. React/TypeScript è compilato e servito dallo stesso backend. SQLite è esclusivamente il database dell'app: non si apre il database Lightroom.
+## Components and isolation
 
-Dati runtime: `~/Library/Application Support/LrC Photo Selection/`, permessi privati. Il plugin conserva il token nel portachiavi SDK e registrazione/journal in file locali fuori dal catalogo. Token locale distinto da qualsiasi chiave OpenAI; autenticazione Bearer del plugin, cookie HttpOnly SameSite Strict del browser. Validazione Host e Origin, niente CORS permissivo. Access log HTTP disabilitato. Nessuna telemetria.
+The official Lua SDK plugin reads only explicitly selected photos, requests JPEG
+previews and sends a version 1 JSON manifest to FastAPI on `127.0.0.1:8766`.
+React/TypeScript is compiled and served by that backend. SQLite belongs exclusively
+to the application; the Lightroom catalog database is never opened directly.
 
-## Identità e revisioni
-Ogni servizio ha UUID, ID catalogo registrato nei file locali del plugin, UUID foto e localIdentifier SDK. Il nome file non è una chiave. Copie virtuali mantengono identità propria. Un catalogo copiato/spostato non viene ricollegato automaticamente. Le mutazioni web richiedono revisione attesa; il manifest ritrasmesso è idempotente e deve corrispondere integralmente.
+English runtime data lives under `~/Library/Application Support/LrC Photo Selection EN/`
+with private permissions. The plugin uses the SDK keychain and separate
+`lrc-photo-selection-plugin-en` storage for registrations and journals, outside the
+catalog. Its toolkit identifier is `com.ericcatta.lrc-photo-selection-en`. The local
+connection token is separate from any OpenAI key. Plugin requests use Bearer
+authentication; browser access uses an HttpOnly, SameSite Strict cookie. Host and
+Origin are checked, permissive CORS is absent, HTTP access logging is disabled and
+there is no telemetry. English storage and credentials do not reuse Italian data.
 
-Importazione separata: manifest, anteprime, completamento. Le anteprime hanno nomi derivati da hash degli ID; mai utilizzare percorsi originali per scrivere. Il backend valida i JPEG e non apre gli originali. Un errore anteprima è visibile, non una prova di equivalenza.
+## Identity and revisions
 
-## Separazione dei dati
-Ogni servizio conserva compartimenti distinti: photos (fatti importati immutabili), settings e preset_snapshot, proposal (interpretazione automatica versionata), decisions (manuali), job e receipts (operazioni riportate dal plugin). Transazioni SQLite serializzano modifiche e preparazione dei piani. Gli esiti di analisi vengono scartati se la revisione è cambiata. Interruzioni ripristinano stato riprendibile senza cancellare decisioni.
+Each service has a UUID, a catalog ID registered in plugin-local files, photo UUIDs
+and SDK `localIdentifier` values. Filenames are not keys. Virtual copies keep their
+own identity. Copied or moved catalogs are not automatically relinked. Web mutations
+require an expected revision; retransmitted manifests are idempotent only when the
+entire payload matches.
 
-## Stelle
-Il backend prepara un piano immutabile, confermato esplicitamente nella web app; solo il plugin può eseguire quel piano tramite SDK. La ripresa recupera il piano attivo anche se erano stati preparati altri piani. Il dialogo SDK mostra identificativi, nomi e operazioni esatte. Baseline 0 stelle, edit time noto, identità e catalogo corrispondenti, nessun tentativo precedente, confronto aggiornato dentro il write gate. Rating preesistenti, modifiche successive e casi dubbi vengono saltati. Il journal locale protegge anche da crash tra modifica e ricevuta. Nessuna rimozione automatica di stelle se una candidata viene successivamente esclusa.
+Import has separate manifest, preview and completion stages. Preview filenames are
+derived from ID hashes; original paths are never used as write destinations. The
+backend validates JPEGs and does not open originals. Preview failures are visible
+and never count as evidence of equivalence.
 
-L'auto-write XMP non ha un getter pubblico SDK verificato. Prima di ogni applicazione l'utente deve controllare nelle impostazioni Lightroom che la scrittura automatica sia disabilitata. Se non può verificarlo, non si applicano stelle. Il plugin non cambia preferenze e non chiama salvataggi metadati. Questa conferma manuale è una precondizione operativa, non una verifica automatica dell'impostazione.
+## Data separation
 
-## Limiti espliciti
-Il primo motore raggruppa soltanto JPEG derivati identici byte per byte. Non afferma di riconoscere scene, persone o pose. Anche le anteprime identiche non dimostrano identità degli originali ad alta risoluzione. Le istruzioni libere vengono ora valutate dal modello visivo locale Qwen3-VL quando installato; in assenza del modello l’analisi con istruzioni è bloccata. La modalità ibrida non invia richieste finché campione, modello, configurazione e budget non sono autorizzati e verificati.
+Services separate immutable imported facts (`photos`), settings and preset snapshots,
+versioned automatic proposals, manual decisions, jobs and plugin receipts. SQLite
+transactions serialize edits and plan preparation. Analysis results are discarded
+if the service revision changed. Interruptions preserve resumable state and decisions.
 
-Il catalogo principale non autorizzato è escluso dai test del team, non dall'uso del prodotto. Nessuna regola nel plugin blocca cataloghi per anno.
+Incremental imports have their own operation ID and complete using that same ID.
+Only new photographs are added; existing facts and decisions are not replaced.
+Older proposals remain available as stale, new photographs begin as candidates,
+and explicit analysis is required before preparing stars.
 
-## Estensioni dopo audit
+Decision history stores before/after values for single decisions or atomic
+replacements with a persistent cursor. Editing after Undo starts a new branch and
+discards the old redo branch. This is not analysis history: undoing an override can
+leave the visible outcome unchanged when the automatic proposal independently
+chooses it. History operations never modify Lightroom. Archiving is local and
+reversible; previews and originals are not deleted.
 
-Gli import incrementali hanno un ID operazione proprio e vengono chiusi con quello stesso ID. Solo le nuove foto vengono aggiunte; fatti importati e decisioni preesistenti non sono sostituiti. Una proposta precedente resta consultabile come obsoleta, con le nuove foto candidate; è obbligatoria un’analisi esplicita prima delle stelle.
+## Star ratings
 
-La cronologia salva prima/dopo delle singole decisioni o sostituzioni atomiche e un cursore persistente. Una nuova decisione dopo Annulla apre un nuovo ramo e scarta la possibilità di ripristinare il vecchio ramo. Non è una cronologia delle analisi: annullare un override può lasciare lo stesso risultato se la proposta automatica lo produce indipendentemente. Nessuna operazione di cronologia modifica Lightroom.
+The backend prepares an immutable plan, explicitly confirmed in the web app. Only
+the plugin executes it through the SDK. Resumption retrieves the active plan even
+when newer plans exist. The SDK dialog shows identifiers, filenames and exact
+operations. Preconditions include baseline zero, known edit time, matching identity
+and catalog, no previous attempt and a fresh comparison inside the catalog write
+gate. Existing ratings, later edits and ambiguous cases are skipped. The local
+journal protects interruptions between a rating change and its receipt. Excluding
+a candidate later never automatically removes stars.
 
-La presentazione calcola rappresentanti e avvisi dalla selezione effettiva. L’archivio è locale e reversibile; non elimina anteprime o originali. I dettagli locali usano una cache separata per componente, checksum anteprima e versione. Vedere audit-plan.md per protocollo e limiti.
+No verified public SDK getter is available for automatic XMP writing. Before each
+application, the user must check that automatic metadata writing is disabled in
+Lightroom settings, then attest that check in the plugin. Stars remain blocked if
+that state cannot be verified. The plugin never changes preferences or invokes
+metadata saving; the checkbox is a manual precondition, not automatic verification.
 
-## Selezione guidata dal testo
+## Text, presets and local models
 
-Il preset è una sorgente opzionale: scegliendolo si copiano istruzioni e criteri nella configurazione modificabile del servizio. Aggiornare/salvare un preset non cambia i servizi precedenti. Il testo originale viene conservato integralmente e passato a ogni valutazione visiva; una sintesi interna non lo sostituisce e non richiede un passaggio aggiuntivo dell’utente.
+A preset is optional. Selecting one copies instructions into editable service
+settings; updating or saving a preset leaves earlier service snapshots unchanged.
+The original text is preserved in full for each visual assessment. Internal derived
+context never replaces it or adds an interpretation-confirmation step for the user.
 
-Qwen3-VL 4B quantizzato usa MLX sul Mac. Ogni anteprima riceve una valutazione strutturata yes/no/uncertain e motivazione, con preferenze ordinali e scene ipotizzate. Ambiguità e criteri non verificabili producono avvisi; non sono interpretati come criteri soddisfatti. Il modello non certifica identità, equivalenza o copertura. Le immagini incerte o non valutabili restano incluse come da rivedere, in aggiunta alla proposta ordinaria anche oltre il numero richiesto. Non valgono come prova di corrispondenza o copertura; le non pertinenti non riempiono automaticamente la quantità. La diversità per etichette di scena è euristica, non riconoscimento affidabile delle situazioni.
+The initial baseline grouped only byte-identical derived JPEGs; even those do not
+prove equivalence of high-resolution originals. The historical Qwen3-VL 4B adapter
+was replaced by Qwen3.5-9B MLX 4-bit with MLX-VLM 0.4.3; see `models.md` for pinned
+revisions and the sequence of decisions. Loading during analysis is offline. Free
+text analysis is blocked if the required local model is unavailable.
 
-La shortlist è una proposta da rivedere, distinta dalle candidate conservative. Solo «Usa questa proposta», dopo avviso di copertura, registra decisioni annullabili nel servizio: nessuna mutazione Lightroom. Le decisioni manuali preesistenti prevalgono. Il piano stelle è un passaggio ulteriore e continua a consentire solo 0→1.
+Each preview receives a structured yes/no/uncertain assessment, a reason, ordinal
+preferences and tentative scene descriptors. Ambiguous or unverifiable criteria
+remain visible and do not count as satisfied. Uncertain, unavailable or unusable
+assessments remain included as Needs review beyond the ordinary proposal, even
+above the target, except where manual exclusions prevail. They do not prove
+matching content or coverage; unrelated images do not fill a target automatically.
+Models do not certify identity, equivalence or complete coverage.
 
-La configurazione OpenAI espone chiave (portachiavi nativo) e modello. Il costruttore Responses conserva il testo originale come contenuto utente distinto dalle istruzioni tecniche e imposta store=false. Il trasporto Responses è abilitato esclusivamente da un piano stimato e confermato; salvare la configurazione non invia foto. `api-jobs.sqlite3` conserva piani immutabili, prenotazioni di budget, consumi e cache. Il recupero dopo un’interruzione avviene solo dopo il lock del server e non invia richieste. Il catalogo modelli separa disponibilità aggiornata dall’account e capacità/tariffe verificate. Vedere `openai.md`.
+The shortlist is a review proposal distinct from conservative current candidates.
+Confirm selection records reversible service decisions without changing Lightroom.
+Existing manual decisions prevail; the star plan is a separate zero-to-one step.
+Local detail extraction uses separate caches keyed by component identity, preview
+checksum and version. See `audit-plan.md` for the evidence protocol and limits.
 
+## OpenAI
 
-## Selezione per gruppi, poi varianti
+Configuration stores the API key in the native keychain. Responses payloads keep
+the exact original text in a user message separate from technical instructions and
+set `store:false`. Saving configuration sends no photographs. Transport is enabled
+only by an estimated, explicitly confirmed plan. The application ledger
+`api-jobs.sqlite3` holds immutable plans, reserves, usage and cache entries.
+Recovery after interruption happens only after acquiring the server lock and sends
+no requests. Dynamic account availability is separate from verified capabilities
+and pricing. See `openai.md`.
 
-`selection.py` centralizza copertura delle categorie, precedenza manuale,
-rappresentanza di tutti i gruppi disponibili e aggiunta bilanciata di alternative.
-La quantità non tronca il primo giro: ciascun gruppo distinto conserva almeno
-una foto idonea. Nei giri successivi si preferiscono i gruppi meno rappresentati;
-le inclusioni manuali sono già conteggiate. Il ranking sceglie la qualità dentro
-il gruppo. L’ordinamento finale non usa più un punteggio misto 70/30 per sacrificare
-una situazione a favore di una variante qualitativamente migliore.
+## Situations first, then variants
 
-Il locale confronta soltanto anteprime derivate, con firma visiva prudente
-(inquadratura, struttura, colore; controllo aggiuntivo degli embedding quando
-presenti). I gruppi richiedono somiglianza tra tutti i membri per evitare catene
-che uniscano situazioni diverse. Evidenze assenti o insufficienti restano separate.
-Le descrizioni di scena da sole non dimostrano equivalenza. OpenAI restituisce una
-partizione motivata dei risultati pertinenti dal confronto globale, validata dal
-backend. Entrambi restano interpretazioni da rivedere; nessun raggruppamento è
-un’affermazione di identità personale o di equivalenza degli originali.
+`selection.py` centralizes category coverage, manual precedence, a representative
+for every eligible distinct group and balanced additional alternatives. The target
+does not truncate the first round. Later rounds prefer less represented groups,
+counting manual inclusions already present. Ranking chooses photographic merit
+inside a group. A mixed 70/30 score is no longer used to sacrifice a distinct
+situation for a stronger duplicate.
+
+Local grouping uses conservative signatures of derived previews: framing,
+structure and color, plus embedding agreement when available. All members must be
+mutually similar so similarity chains cannot merge separate situations. Missing or
+insufficient evidence stays separate; scene descriptions alone do not prove
+equivalence. OpenAI returns a reasoned partition of matching results from the
+confirmed global comparison, validated by the backend. Both remain reviewable
+interpretations, not statements of personal identity or original-file equivalence.
+
+Test exclusions apply to team operations, not product catalog-name or year rules.

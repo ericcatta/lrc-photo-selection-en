@@ -4,32 +4,32 @@ set -euo pipefail
 cd "${0:A:h:h}"
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo 'Python 3 non trovato. Installa Python 3.11 o successivo, poi riprova.' >&2
+  echo 'Python 3 was not found. Install Python 3.11 or later, then try again.' >&2
   exit 1
 fi
-python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else "Serve Python 3.11 o successivo.")'
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else "Python 3.11 or later is required.")'
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-  echo 'Node.js e npm non trovati. Installa una versione compatibile indicata nel README, poi riprova.' >&2
+  echo 'Node.js and npm were not found. Install a compatible version listed in README.md, then try again.' >&2
   exit 1
 fi
-node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (!(major > 22 || (major === 22 && minor >= 12) || (major === 20 && minor >= 19))) { console.error("Serve Node.js 20.19+ della serie 20, oppure 22.12 o successivo."); process.exit(1); }'
+node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (!(major > 22 || (major === 22 && minor >= 12) || (major === 20 && minor >= 19))) { console.error("Node.js 20.19+ in the 20 series, or 22.12 or later, is required."); process.exit(1); }'
 if [[ ! -d .venv ]]; then
   python3 -m venv .venv
 fi
 if [[ ! -x .venv/bin/python ]]; then
-  echo 'La cartella .venv esiste ma non contiene un ambiente valido. Rinominala manualmente e riprova.' >&2
+  echo 'The .venv folder exists but does not contain a valid environment. Rename it manually and try again.' >&2
   exit 1
 fi
-.venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else "L’ambiente .venv richiede Python 3.11 o successivo: rinominalo e riprova.")'
+.venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else "The .venv environment requires Python 3.11 or later: rename it and try again.")'
 
-echo 'Installazione delle dipendenze Python nell’ambiente .venv del progetto…'
+echo 'Installing Python dependencies in this project’s .venv environment…'
 .venv/bin/python -m pip install -e .
-echo 'Installazione e compilazione dell’interfaccia…'
+echo 'Installing and building the web interface…'
 npm --prefix web ci
 npm --prefix web run build
 
 echo ''
-echo 'Installazione completata.'
-echo 'Avvia scripts/start.command e lascia aperta la finestra del backend.'
-echo 'Poi aggiungi plugin/lrc-photo-selection.lrplugin da Gestione plug-in di Lightroom.'
-echo 'Nessun modello scaricato, nessuna analisi avviata e nessun catalogo aperto.'
+echo 'Installation complete.'
+echo 'Run scripts/start.command and leave the backend window open.'
+echo 'Then add plugin/lrc-photo-selection.lrplugin in Lightroom Plug-in Manager.'
+echo 'No models were downloaded, no analysis was started and no catalog was opened.'

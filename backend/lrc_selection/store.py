@@ -4,15 +4,15 @@ from contextlib import contextmanager
 from pathlib import Path
 from fastapi import HTTPException
 
-WEDDING = {'id': 'wedding', 'name': 'Matrimonio', 'version': 1, 'criteria': [
-    'Preservare situazioni e composizioni differenti',
-    'Conservare immagini uniche anche se imperfette',
-    'Preferire varianti significative a duplicati',
+WEDDING = {'id': 'wedding', 'name': 'Wedding', 'version': 1, 'criteria': [
+    'Preserve different situations and compositions',
+    'Keep unique images even when imperfect',
+    'Prefer meaningful variations over duplicates',
 ]}
 
-NATURE = {'id': 'nature', 'name': 'Natura e animali', 'version': 1, 'subject_query': 'animali e uccelli', 'criteria': [
-    'Conservare specie, ambienti e azioni differenti',
-    'Confrontare le varianti di posa prima di ridurre le raffiche',
+NATURE = {'id': 'nature', 'name': 'Nature and wildlife', 'version': 1, 'subject_query': 'animals and birds', 'criteria': [
+    'Preserve different species, environments and actions',
+    'Compare pose variations before reducing bursts',
 ]}
 
 class Store:
@@ -23,7 +23,7 @@ class Store:
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
             if version > 1:
-                raise RuntimeError('Database app creato da una versione più recente')
+                raise RuntimeError('App database was created by a newer version')
             db.executescript('''
                 PRAGMA journal_mode=WAL;
                 CREATE TABLE IF NOT EXISTS services(id TEXT PRIMARY KEY, body TEXT NOT NULL);
@@ -60,7 +60,7 @@ class Store:
                 return self.get(sid, conn)
         row = db.execute('SELECT body FROM services WHERE id=?', (sid,)).fetchone()
         if row is None:
-            raise HTTPException(404, 'Servizio non trovato')
+            raise HTTPException(404, 'Service not found')
         return json.loads(row['body'])
 
     def put(self, db, service):
@@ -69,7 +69,7 @@ class Store:
     @staticmethod
     def check_revision(service, revision):
         if service['revision'] != revision:
-            raise HTTPException(409, 'La revisione è cambiata. Ricaricare il servizio.')
+            raise HTTPException(409, 'The revision has changed. Reload the service.')
 
     def preview_path(self, sid, pid):
         # Never derive paths from original filenames or externally supplied paths.
@@ -84,7 +84,7 @@ class Store:
                 service = json.loads(row['body'])
                 if service.get('job') and service['job']['status'] in ('queued', 'running'):
                     service['job']['status'] = 'interrupted'
-                    service['job']['error'] = 'Analisi interrotta. Avvia nuovamente per riprendere dai dati salvati.'
+                    service['job']['error'] = 'Analysis interrupted. Start again to resume from saved data.'
                     service['status'] = 'ready'
                     service['revision'] += 1
                     self.put(db, service)

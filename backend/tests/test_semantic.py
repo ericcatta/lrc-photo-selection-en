@@ -67,7 +67,7 @@ def test_diversity_and_manual_precedence(tmp_path):
     snapshot['decisions']['2'] = {'state': 'candidate'}
     result = build_semantic_proposal(store, snapshot, encoder)
     assert set(result['shortlist']) == {'2', '3'}
-    assert any('decisioni manuali' in warning for warning in result['warnings'])
+    assert any('manual decisions' in warning for warning in result['warnings'])
 
 
 def test_missing_previews_preserved_and_hash_checked(tmp_path):
@@ -76,11 +76,11 @@ def test_missing_previews_preserved_and_hash_checked(tmp_path):
     snapshot['decisions']['0'] = {'state': 'review', 'locked': True}
     result = build_semantic_proposal(store, snapshot, encoder)
     assert result['shortlist'][0] == '0'
-    assert result['interpretations']['records']['0']['error'] == 'Anteprima mancante'
+    assert result['interpretations']['records']['0']['error'] == 'Missing preview'
     assert '0' not in result['query_scores']
     assert len(encoder.image_calls) == 3
     store.preview_path('synthetic', '1').write_bytes(b'changed')
-    with pytest.raises(ValueError, match='Anteprima cambiata'):
+    with pytest.raises(ValueError, match='Preview changed'):
         build_semantic_proposal(store, snapshot, encoder)
 
 
@@ -156,7 +156,7 @@ def test_instruction_preference_can_outweigh_small_diversity_difference(tmp_path
 def test_category_coverage_survives_embedding_rerank_and_prefers_requested_people(tmp_path):
     from lrc_selection.semantic import rerank_instruction_shortlist
     store,snapshot,encoder=fixture(tmp_path)
-    categories=[{'id':'birds','description':'Uccelli'},{'id':'portraits','description':'Ritratti di persone'}]
+    categories=[{'id':'birds','description':'Uccelli'},{'id':'portraits','description':'Portraits of people'}]
     result=instruction_result()
     result['instruction_interpretation']={'requested_categories':categories}
     for pid,assessment in result['assessments'].items():
@@ -170,7 +170,7 @@ def test_category_coverage_survives_embedding_rerank_and_prefers_requested_peopl
     reranked=rerank_instruction_shortlist(result,snapshot,store,encoder)
     assert '2' not in reranked['shortlist']
     assert reranked['coverage'][1]['status']=='manual-excluded'
-    assert any('decisioni manuali' in w for w in reranked['warnings'])
+    assert any('manual decisions' in w for w in reranked['warnings'])
 
 
 def test_category_uncertainty_not_absence_or_filler_and_multicategory_image():
@@ -185,7 +185,7 @@ def test_category_uncertainty_not_absence_or_filler_and_multicategory_image():
     result=select_with_category_coverage(['a'],[],assessments,categories,2)
     assert result['shortlist']==['a']
     assert result['coverage'][1]['status']=='uncertain'
-    assert any('valutazioni incerte' in w for w in result['warnings'])
+    assert any('uncertain assessments' in w for w in result['warnings'])
 
 
 def test_technical_annotations_cannot_replace_last_requested_portrait(tmp_path):
@@ -193,7 +193,7 @@ def test_technical_annotations_cannot_replace_last_requested_portrait(tmp_path):
     store,snapshot,encoder=fixture(tmp_path)
     result=instruction_result(matches=('0','1','2'))
     result['instruction_interpretation']={'requested_categories':[
-        {'id':'birds','description':'Uccelli'},{'id':'portraits','description':'Ritratti di persone'}]}
+        {'id':'birds','description':'Uccelli'},{'id':'portraits','description':'Portraits of people'}]}
     for pid,assessment in result['assessments'].items():
         assessment['category_matches']={'birds':'yes' if pid in ('0','1') else 'no',
                                         'portraits':'yes' if pid=='2' else 'no'}
@@ -216,7 +216,7 @@ def test_local_uncertainty_retention_survives_siglip_rerank_without_fabricating_
     for pid,a in result['assessments'].items():
         a['category_matches']={'subject':'yes'}
     result['assessments']['2']['match']='uncertain'
-    result['assessments']['3'].update(match='uncertain',error='Risposta non valida')
+    result['assessments']['3'].update(match='uncertain',error='Invalid response')
     result['review_ids']=['2','3']
     result['shortlist']=['0','2','3']
     result['shortlist_reasons']={'2':'Da rivedere: synthetic uncertainty','3':'Da rivedere: synthetic error'}

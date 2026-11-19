@@ -17,7 +17,7 @@ def storage():
             return state.step ~= state.failAt
         end
         local function confined(path)
-            assert(path:match('^/synthetic/appData/lrc%-photo%-selection%-plugin/'))
+            assert(path:match('^/synthetic/appData/lrc%-photo%-selection%-plugin%-en/'))
         end
         local file = {}
         function file.exists(path) confined(path); return state.files[path] and 'file' end
